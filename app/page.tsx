@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react'; import AmountPresets from '@/components/AmountPresets';
+import { useState, useMemo } from 'react'; import { AmountPresets } from '@/components/AmountPresets';
 const MIN=5, MAX=5_000_000;
 export default function HomePage(){
   const [nickname,setNickname]=useState(''); const [amount,setAmount]=useState<number>(50); const [message,setMessage]=useState(''); const [submitting,setSubmitting]=useState(false); const [testing,setTesting]=useState(false); const [error,setError]=useState(''); const [toast,setToast]=useState('');
