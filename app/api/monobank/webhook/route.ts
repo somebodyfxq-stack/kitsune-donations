@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'node:crypto';
 import { appendDonationEvent, findIntentByIdentifier } from '@/lib/store';
 import { broadcastDonation } from '@/lib/sse';
 
@@ -19,14 +20,21 @@ export interface MonobankPayload {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = process.env.ADMIN_TOKEN;
-  const hdr = req.headers.get('x-admin-token');
-  if (admin && hdr !== admin)
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  const secret = process.env.MONOBANK_WEBHOOK_SECRET;
+  const raw = await req.text();
+  if (secret) {
+    const sign = req.headers.get('x-sign');
+    const expected = crypto
+      .createHmac('sha256', secret)
+      .update(raw)
+      .digest('base64');
+    if (sign !== expected)
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
 
   let json: unknown;
   try {
-    json = await req.json();
+    json = JSON.parse(raw);
   } catch (err) {
     console.error('Failed to parse Monobank payload', err);
     return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
@@ -41,8 +49,13 @@ export async function POST(req: NextRequest) {
     payload?.statementItem ||
     payload;
 
-  const comment = String(item?.comment || item?.description || '');
-  const minor = Number(item?.amount || 0);
+  if (!item || typeof item !== 'object')
+    return NextResponse.json({ ok: true, ignored: true, reason: 'No statement item' });
+
+  console.log('Monobank statement item', item);
+
+  const comment = String(item.comment || item.description || '');
+  const minor = Number(item.amount || 0);
   const amount = Math.round(minor) / 100;
   if (amount <= 0)
     return NextResponse.json({ ok: true, ignored: true, reason: 'Non-positive amount' });
