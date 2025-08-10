@@ -5,6 +5,10 @@ import { broadcastDonation } from '@/lib/sse';
 
 export const runtime = 'nodejs';
 
+export function GET() {
+  return NextResponse.json({ ok: true });
+}
+
 interface StatementItem {
   comment?: string;
   description?: string;
