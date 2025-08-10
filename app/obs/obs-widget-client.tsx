@@ -78,8 +78,8 @@ export function ObsWidgetClient() {
       style={{ background: "transparent" }}
     >
       {visible && data && (
-        <div className="animate-pop w-[80vw] h-[80vh] flex items-center justify-center">
-          <div className="rounded-3xl bg-white/80 text-neutral-900 shadow-2xl backdrop-blur-xl px-6 py-4 w-full h-full ring-1 ring-black/5"
+        <div className="animate-pop flex items-center justify-center">
+          <div className="rounded-3xl bg-white/80 text-neutral-900 shadow-2xl backdrop-blur-xl px-6 py-4 max-w-[80vw] max-h-[80vh] ring-1 ring-black/5"
             style={{ WebkitBackdropFilter: "blur(16px)" }}
           >
             <div className="text-sm opacity-70 mb-1">Дякуємо за підтримку!</div>
