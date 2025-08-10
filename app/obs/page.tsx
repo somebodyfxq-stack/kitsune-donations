@@ -10,12 +10,17 @@ interface EventPayload {
   createdAt: string;
 }
 
+type ConnectionState = "connecting" | "connected" | "error";
+
 export const dynamic = "force-dynamic";
 
 export default function OBSWidgetPage() {
   const [visible, setVisible] = useState(false);
   const [data, setData] = useState<EventPayload | null>(null);
   const [voiceName, setVoiceName] = useState("");
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    "connecting"
+  );
   const speechAllowedRef = useRef(false);
 
   useEffect(() => {
@@ -45,19 +50,33 @@ export default function OBSWidgetPage() {
       document.removeEventListener("click", enable);
     };
     document.addEventListener("click", enable);
-    const es = new EventSource("/api/stream");
-    es.addEventListener("donation", (ev) => {
-      try {
-        const p: EventPayload = JSON.parse((ev as MessageEvent).data);
-        setData(p);
-        setVisible(true);
-        const t = `${p.nickname} задонатив ${Math.round(p.amount)} гривень. Повідомлення: ${p.message}`;
-        if (speechAllowedRef.current) speak(t);
-        setTimeout(() => setVisible(false), 8000);
-      } catch (err) {
-        console.error("Failed to handle donation event", err);
-      }
-    });
+
+    let es: EventSource;
+    function connect() {
+      setConnectionState("connecting");
+      es = new EventSource("/api/stream");
+      es.addEventListener("open", () => setConnectionState("connected"));
+      es.addEventListener("error", (err) => {
+        console.error("EventSource error", err);
+        setConnectionState("error");
+        es.close();
+        setTimeout(connect, 3000);
+      });
+      es.addEventListener("donation", (ev) => {
+        try {
+          const p: EventPayload = JSON.parse((ev as MessageEvent).data);
+          setData(p);
+          setVisible(true);
+          const t = `${p.nickname} задонатив ${Math.round(p.amount)} гривень. Повідомлення: ${p.message}`;
+          if (speechAllowedRef.current) speak(t);
+          setTimeout(() => setVisible(false), 8000);
+        } catch (err) {
+          console.error("Failed to handle donation event", err);
+        }
+      });
+    }
+    connect();
+
     return () => {
       es.close();
       document.removeEventListener("click", enable);
@@ -69,6 +88,17 @@ export default function OBSWidgetPage() {
       className="fixed inset-0 pointer-events-none select-none"
       style={{ background: "transparent" }}
     >
+      <div className="absolute top-2 right-3 text-xs">
+        {connectionState === "connected" && (
+          <span className="text-green-500">Підключено</span>
+        )}
+        {connectionState === "connecting" && (
+          <span className="text-yellow-500">Підключення...</span>
+        )}
+        {connectionState === "error" && (
+          <span className="text-red-500">Немає з'єднання</span>
+        )}
+      </div>
       {visible && data && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-pop">
           <div
