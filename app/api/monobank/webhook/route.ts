@@ -10,7 +10,7 @@ interface StatementItem {
   amount?: number;
 }
 
-interface MonobankWebhookBody {
+export interface MonobankPayload {
   data?: { statementItem?: StatementItem };
   statementItem?: StatementItem;
   comment?: string;
@@ -27,14 +27,15 @@ export async function POST(req: NextRequest) {
   let json: unknown;
   try {
     json = await req.json();
-  } catch {
+  } catch (err) {
+    console.error('Failed to parse Monobank payload', err);
     return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
   }
 
   if (!json || typeof json !== 'object')
     return NextResponse.json({ ok: false, error: 'Invalid body' }, { status: 400 });
 
-  const payload = json as MonobankWebhookBody;
+  const payload = json as MonobankPayload;
   const item =
     payload?.data?.statementItem ||
     payload?.statementItem ||
@@ -43,6 +44,8 @@ export async function POST(req: NextRequest) {
   const comment = String(item?.comment || item?.description || '');
   const minor = Number(item?.amount || 0);
   const amount = Math.round(minor) / 100;
+  if (amount <= 0)
+    return NextResponse.json({ ok: true, ignored: true, reason: 'Non-positive amount' });
 
   const m = comment.match(/\(([A-Z0-9-]{6,})\)/i);
   if (!m)
