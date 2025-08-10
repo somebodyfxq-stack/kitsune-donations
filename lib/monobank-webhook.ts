@@ -9,5 +9,13 @@ export async function configureWebhook(webhookUrl: string): Promise<void> {
     },
     body: JSON.stringify({ webHookUrl: webhookUrl }),
   });
-  if (!res.ok) throw new Error(`Failed to configure Monobank webhook: ${res.status}`);
+  const details = await res.text();
+  if (res.ok) return;
+  if (res.status === 400 && /already/i.test(details)) {
+    console.warn(`Monobank webhook already configured: ${details}`);
+    return;
+  }
+  throw new Error(
+    `Failed to configure Monobank webhook: ${res.status} ${details}`,
+  );
 }
