@@ -13,6 +13,8 @@ interface EventPayload {
 type ConnectionState = "connecting" | "connected" | "error";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default function OBSWidgetPage() {
   const [visible, setVisible] = useState(false);
@@ -54,7 +56,7 @@ export default function OBSWidgetPage() {
     let es: EventSource;
     function connect() {
       setConnectionState("connecting");
-      es = new EventSource("/api/stream");
+      es = new EventSource("/api/stream?ts=" + Date.now());
       es.addEventListener("open", () => setConnectionState("connected"));
       es.addEventListener("error", (err) => {
         console.error("EventSource error", err);
