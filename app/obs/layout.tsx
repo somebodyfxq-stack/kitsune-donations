@@ -1,1 +1,17 @@
-export default function OBSLayout({children}:{children:React.ReactNode}){return(<html lang='uk'><body style={{background:'transparent'}}>{children}</body></html>)}
+import type { ReactNode } from "react";
+
+interface LayoutProps {
+  children: ReactNode;
+}
+
+export default function OBSLayout({ children }: LayoutProps) {
+  return (
+    <html lang="uk">
+      <head>
+        <meta httpEquiv="Cache-Control" content="no-store" />
+      </head>
+      <body style={{ background: "transparent" }}>{children}</body>
+    </html>
+  );
+}
+
