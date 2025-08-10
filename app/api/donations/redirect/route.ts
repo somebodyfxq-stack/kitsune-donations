@@ -13,10 +13,14 @@ export async function GET(req: NextRequest) {
   if (!jarId) {
     return NextResponse.json({ error: 'Server is not configured. Missing JAR_ID env var.' }, { status: 500 });
   }
-  if (!nickname || !message || !amountParam) {
+  const rounded = Math.round(amountParam);
+  if (!nickname || !message || !rounded) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
   }
-  const amount = clamp(Math.round(amountParam), 5, 5000000); // UAH
+  if (rounded < 10 || rounded > 29999) {
+    return NextResponse.json({ error: 'Amount must be between 10 and 29999' }, { status: 400 });
+  }
+  const amount = clamp(rounded, 10, 29999); // UAH
   const identifier = generateIdentifier();
   await appendIntent({
     identifier,

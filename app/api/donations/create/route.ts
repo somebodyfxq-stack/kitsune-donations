@@ -9,8 +9,10 @@ export async function GET(req: NextRequest){
   const amountParam=Number(sp.get('amount')||'0');
   const jarId=process.env.JAR_ID;
   if(!jarId) return NextResponse.json({error:'Missing JAR_ID'}, {status:500});
-  if(!nickname||!message||!amountParam) return NextResponse.json({error:'Invalid input'},{status:400});
-  const amount=clamp(Math.round(amountParam),5,5000000);
+  const rounded=Math.round(amountParam);
+  if(!nickname||!message||!rounded) return NextResponse.json({error:'Invalid input'},{status:400});
+  if(rounded<10||rounded>29999) return NextResponse.json({error:'Amount must be between 10 and 29999'},{status:400});
+  const amount=clamp(rounded,10,29999);
   const identifier=generateIdentifier();
   await appendIntent({identifier,nickname,message,amount,createdAt:new Date().toISOString()});
   const url=buildMonoUrl(jarId,amount,`${message} (${identifier.toLowerCase()})`);
