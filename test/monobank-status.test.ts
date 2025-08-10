@@ -14,7 +14,7 @@ async function writeEvents(events: DonationEvent[]) {
 
 test('reports inactive when no events', async () => {
   await writeEvents([]);
-  const res = await GET();
+  const res = await GET(new Request('http://localhost'));
   assert.strictEqual(res.status, 200);
   const body = await res.json();
   assert.deepStrictEqual(body, { isActive: false, event: null });
@@ -40,7 +40,7 @@ test('returns latest event', async () => {
     },
   ];
   await writeEvents(events);
-  const res = await GET();
+  const res = await GET(new Request('http://localhost'));
   assert.strictEqual(res.status, 200);
   const body = await res.json();
   assert.deepStrictEqual(body, { isActive: true, event: events[1] });
