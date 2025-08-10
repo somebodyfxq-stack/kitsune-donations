@@ -5,6 +5,7 @@ import type { DonationIntent, DonationEvent } from "@/lib/utils";
 const dataDir = path.join(process.cwd(), "data");
 const intentsPath = path.join(dataDir, "intents.json");
 const eventsPath = path.join(dataDir, "donations.json");
+const statusPath = path.join(dataDir, "status.json");
 
 const locks = new Map<string, Promise<unknown>>();
 
@@ -30,6 +31,11 @@ async function ensure(): Promise<void> {
     await fs.access(eventsPath);
   } catch {
     await fs.writeFile(eventsPath, "[]", "utf8");
+  }
+  try {
+    await fs.access(statusPath);
+  } catch {
+    await fs.writeFile(statusPath, "{}", "utf8");
   }
 }
 
@@ -72,4 +78,29 @@ export async function listDonationEvents(): Promise<DonationEvent[]> {
     await ensure();
     return JSON.parse(await fs.readFile(eventsPath, "utf8"));
   });
+}
+
+export interface MonobankStatus {
+  monobankWebhookAt?: string;
+}
+
+async function readStatus(): Promise<MonobankStatus> {
+  await ensure();
+  try {
+    return JSON.parse(await fs.readFile(statusPath, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+export async function updateMonobankWebhookAt(date: Date): Promise<void> {
+  await withLock(statusPath, async () => {
+    const status = await readStatus();
+    status.monobankWebhookAt = date.toISOString();
+    await fs.writeFile(statusPath, JSON.stringify(status, null, 2), "utf8");
+  });
+}
+
+export async function getMonobankStatus(): Promise<MonobankStatus> {
+  return withLock(statusPath, readStatus);
 }
