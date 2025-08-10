@@ -1,7 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert'
 import { NextRequest } from 'next/server'
-import { POST } from '@/app/api/monobank/webhook/route.ts'
+import { GET, POST } from '@/app/api/monobank/webhook/route.ts'
+
+test('GET /api/monobank/webhook returns 200', async function () {
+  const res = await GET()
+  assert.strictEqual(res.status, 200)
+  const body = await res.json()
+  assert.deepStrictEqual(body, { ok: true })
+})
 
 // Ensure non-positive amounts are ignored
 test('ignores non-positive amount', async () => {
