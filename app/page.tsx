@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react'; import Link from 'next/link'; import { AmountPresets } from '@/components/AmountPresets';
+import { useState, useMemo } from 'react'; import Link from 'next/link'; import { AmountPresets } from '@/components/amount-presets';
 export default function HomePage(){
   const [nickname,setNickname]=useState(''); const [amount,setAmount]=useState<number>(50); const [message,setMessage]=useState(''); const [submitting,setSubmitting]=useState(false); const [testing,setTesting]=useState(false); const [error,setError]=useState(''); const [toast,setToast]=useState('');
   const isAmountValid=amount>=10&&amount<=29999;
