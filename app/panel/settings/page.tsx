@@ -21,7 +21,7 @@ export default async function SettingsPage() {
       setSetting('jarId', jar),
       setSetting('monobankToken', token),
     ]);
-    redirect('/admin/settings');
+    redirect('/panel/settings');
   }
 
   return (

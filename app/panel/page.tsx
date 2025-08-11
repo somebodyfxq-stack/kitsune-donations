@@ -7,7 +7,7 @@ import { StatusClient, StatusData } from './status-client';
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'admin') redirect('/login');
+  if (!session || session.user?.role !== 'streamer') redirect('/login');
 
   const h = headers();
   const proto = h.get('x-forwarded-proto') ?? 'http';
