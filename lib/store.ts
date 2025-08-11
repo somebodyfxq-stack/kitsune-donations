@@ -1,5 +1,5 @@
-import { prisma } from '@/lib/db';
-import type { DonationIntent, DonationEvent, Setting } from '@prisma/client';
+import { prisma } from "@/lib/db";
+import type { DonationIntent, DonationEvent, Setting } from "@prisma/client";
 
 interface SettingMap {
   jarId: string;
@@ -19,7 +19,9 @@ export async function appendIntent(intent: DonationIntent): Promise<void> {
   });
 }
 
-export async function findIntentByIdentifier(id: string): Promise<DonationIntent | undefined> {
+export async function findIntentByIdentifier(
+  id: string,
+): Promise<DonationIntent | undefined> {
   const intent = await prisma.donationIntent.findUnique({
     where: { identifier: id.toLowerCase() },
   });
@@ -37,15 +39,20 @@ export async function appendDonationEvent(event: DonationEvent): Promise<void> {
 }
 
 export async function listDonationEvents(): Promise<DonationEvent[]> {
-  return prisma.donationEvent.findMany({ orderBy: { createdAt: 'asc' } });
+  return prisma.donationEvent.findMany({ orderBy: { createdAt: "asc" } });
 }
 
-export async function getSetting<K extends SettingKey>(key: K): Promise<SettingMap[K] | null> {
+export async function getSetting<K extends SettingKey>(
+  key: K,
+): Promise<SettingMap[K] | null> {
   const s = await prisma.setting.findUnique({ where: { key } });
   return (s?.value as SettingMap[K]) ?? null;
 }
 
-export async function setSetting<K extends SettingKey>(key: K, value: SettingMap[K]): Promise<Setting> {
+export async function setSetting<K extends SettingKey>(
+  key: K,
+  value: SettingMap[K],
+): Promise<Setting> {
   return prisma.setting.upsert({
     where: { key },
     update: { value: String(value) },

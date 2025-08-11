@@ -97,10 +97,10 @@ export function ObsWidgetClient() {
 
   return (
     <div
-      className="fixed inset-0 pointer-events-none select-none"
+      className="pointer-events-none fixed inset-0 select-none"
       style={{ background: "transparent" }}
     >
-      <div className="absolute top-2 right-3 text-xs">
+      <div className="absolute right-3 top-2 text-xs">
         {connectionState === "connected" && (
           <span className="text-green-500">Підключено</span>
         )}
@@ -114,12 +114,12 @@ export function ObsWidgetClient() {
       {visible && data && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-pop">
           <div
-            className="rounded-3xl bg-white/80 text-neutral-900 shadow-2xl backdrop-blur-xl px-6 py-4 min-w-[360px] ring-1 ring-black/5"
+            className="min-w-[360px] rounded-3xl bg-white/80 px-6 py-4 text-neutral-900 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl"
             style={{ WebkitBackdropFilter: "blur(16px)" }}
           >
-            <div className="text-sm opacity-70 mb-1">Дякуємо за підтримку!</div>
+            <div className="mb-1 text-sm opacity-70">Дякуємо за підтримку!</div>
             <div className="text-2xl font-bold">{data.nickname}</div>
-            <div className="text-xl mt-1">₴ {Math.round(data.amount)}</div>
+            <div className="mt-1 text-xl">₴ {Math.round(data.amount)}</div>
             <div className="mt-2 text-sm">{data.message}</div>
           </div>
         </div>

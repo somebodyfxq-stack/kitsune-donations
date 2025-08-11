@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition } from "react";
 
 interface RoleSelectProps {
   userId: string;
@@ -16,8 +16,8 @@ export function RoleSelect({ userId, initialRole }: RoleSelectProps) {
     setRole(nextRole);
     startTransition(async () => {
       await fetch(`/api/users/${userId}/role`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: nextRole }),
       });
     });
@@ -35,4 +35,3 @@ export function RoleSelect({ userId, initialRole }: RoleSelectProps) {
     </select>
   );
 }
-

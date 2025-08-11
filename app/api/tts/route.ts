@@ -11,7 +11,10 @@ export async function GET(req: Request) {
   try {
     const [res] = await client.synthesizeSpeech({
       input: { text },
-      voice: { languageCode: voice.split("-").slice(0, 2).join("-"), name: voice },
+      voice: {
+        languageCode: voice.split("-").slice(0, 2).join("-"),
+        name: voice,
+      },
       audioConfig: { audioEncoding: "MP3" },
     });
     const audio = res.audioContent ?? new Uint8Array();

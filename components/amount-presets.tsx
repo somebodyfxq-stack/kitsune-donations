@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { clsx } from 'clsx';
+import { clsx } from "clsx";
 
 export function AmountPresets({ value, onChange }: AmountPresetsProps) {
   return (
     <div className="flex flex-wrap gap-3">
-      {presets.map(preset => (
+      {presets.map((preset) => (
         <button
           key={preset}
           type="button"
           aria-label={`Обрати ${preset} гривень`}
-          className={clsx('pill', value === preset && 'ring-2 ring-purple-400')}
+          className={clsx("pill", value === preset && "ring-2 ring-purple-400")}
           onClick={() => onChange(preset)}
         >
           {preset}
@@ -26,4 +26,3 @@ interface AmountPresetsProps {
   value: number;
   onChange: (n: number) => void;
 }
-

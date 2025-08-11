@@ -1,15 +1,15 @@
-import { getServerSession } from 'next-auth';
-import { redirect } from 'next/navigation';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { RoleSelect } from './role-select';
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { RoleSelect } from "./role-select";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'admin') redirect('/admin/login');
+  if (!session || session.user.role !== "admin") redirect("/admin/login");
 
   const users = await prisma.user.findMany({
-    where: { accounts: { some: { provider: 'twitch' } } },
+    where: { accounts: { some: { provider: "twitch" } } },
     select: { id: true, name: true, email: true, role: true },
   });
 
@@ -52,4 +52,3 @@ interface User {
   email: string | null;
   role: string;
 }
-

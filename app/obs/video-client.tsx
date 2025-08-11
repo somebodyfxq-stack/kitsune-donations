@@ -66,8 +66,8 @@ export function VideoClient() {
   }
 
   return (
-    <div className="w-full h-full relative">
-      <div className="absolute top-2 right-3 text-xs">
+    <div className="relative h-full w-full">
+      <div className="absolute right-3 top-2 text-xs">
         {connection.status === "connected" && (
           <span className="text-green-500">Підключено</span>
         )}
@@ -79,18 +79,22 @@ export function VideoClient() {
         )}
       </div>
       {current && (
-        <div className="w-full h-full">
-          <div className="absolute top-3 left-3 bg-black/60 text-white rounded-md p-3">
+        <div className="h-full w-full">
+          <div className="absolute left-3 top-3 rounded-md bg-black/60 p-3 text-white">
             <div className="text-sm font-semibold">{current.title}</div>
-            <div className="text-xs opacity-75 mt-1">{current.nickname}</div>
+            <div className="mt-1 text-xs opacity-75">{current.nickname}</div>
           </div>
-          <div className="w-full h-full">
+          <div className="h-full w-full">
             <VideoPlayer videoId={current.youtubeId} onEnd={playNext} />
           </div>
         </div>
       )}
       <div className="absolute bottom-3 right-3 flex gap-2">
-        <Button type="button" onClick={handleSkip} disabled={!current && queueRef.current.length === 0}>
+        <Button
+          type="button"
+          onClick={handleSkip}
+          disabled={!current && queueRef.current.length === 0}
+        >
           Пропустити
         </Button>
         <Button
@@ -142,7 +146,7 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
     if (playerRef.current) playerRef.current.loadVideoById(videoId);
   }, [videoId]);
 
-  return <div ref={containerRef} className="w-full h-full" />;
+  return <div ref={containerRef} className="h-full w-full" />;
 }
 
 interface YTPlayer {
@@ -166,4 +170,3 @@ declare global {
     onYouTubeIframeAPIReady?: () => void;
   }
 }
-
