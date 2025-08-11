@@ -1,11 +1,9 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
-  if (session) redirect("/panel");
 
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -15,12 +13,20 @@ export default async function HomePage() {
       </div>
       <div className="relative mx-auto max-w-2xl px-6 py-14">
         <div className="card flex flex-col gap-4 p-6 md:p-8">
-          <Link href="/login" className="btn-primary text-center">
-            Створити сторінку
-          </Link>
-          <Link href="/panel" className="btn-ghost text-center">
-            Увійти
-          </Link>
+          {session ? (
+            <Link href="/panel" className="btn-primary text-center">
+              Кабінет
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="btn-primary text-center">
+                Створити сторінку
+              </Link>
+              <Link href="/panel" className="btn-ghost text-center">
+                Увійти
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </main>
