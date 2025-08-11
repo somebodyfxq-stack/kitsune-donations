@@ -12,25 +12,44 @@ interface EventPayload {
 
 type ConnectionState = "connecting" | "connected" | "error";
 
-function speak(text: string, voiceName: string) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  if (voiceName) {
-    const v = window.speechSynthesis
-      .getVoices()
-      .find((x) => x.name.includes(voiceName));
-    if (v) u.voice = v;
-  }
-  window.speechSynthesis.speak(u);
-}
-
 export function ObsWidgetClient() {
   const [visible, setVisible] = useState(false);
   const [data, setData] = useState<EventPayload | null>(null);
   const [voiceName, setVoiceName] = useState("");
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("connecting");
-  const speechAllowedRef = useRef(false);
+  const audioAllowedRef = useRef(false);
+  const queueRef = useRef<EventPayload[]>([]);
+  const playingRef = useRef(false);
+
+  function playNext() {
+    const next = queueRef.current.shift();
+    if (!next) return;
+    setData(next);
+    setVisible(true);
+    playingRef.current = true;
+    const text = `${next.nickname} задонатив ${Math.round(next.amount)} гривень. Повідомлення: ${next.message}`;
+    const src = `/api/tts?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(text)}`;
+    const audio = new Audio(src);
+    const finish = () => {
+      setVisible(false);
+      playingRef.current = false;
+      setTimeout(playNext, 2000);
+    };
+    audio.addEventListener("ended", finish, { once: true });
+    audio.addEventListener("error", finish, { once: true });
+    if (audioAllowedRef.current)
+      audio.play().catch((err) => {
+        console.error("Failed to play audio", err);
+        finish();
+      });
+    else finish();
+  }
+
+  function enqueue(p: EventPayload) {
+    queueRef.current.push(p);
+    if (!playingRef.current) playNext();
+  }
 
   useEffect(() => {
     try {
@@ -43,7 +62,7 @@ export function ObsWidgetClient() {
 
   useEffect(() => {
     const enable = () => {
-      speechAllowedRef.current = true;
+      audioAllowedRef.current = true;
       document.removeEventListener("click", enable);
     };
     document.addEventListener("click", enable);
@@ -62,11 +81,7 @@ export function ObsWidgetClient() {
       es.addEventListener("donation", (ev) => {
         try {
           const p: EventPayload = JSON.parse((ev as MessageEvent).data);
-          setData(p);
-          setVisible(true);
-          const t = `${p.nickname} задонатив ${Math.round(p.amount)} гривень. Повідомлення: ${p.message}`;
-          if (speechAllowedRef.current) speak(t, voiceName);
-          setTimeout(() => setVisible(false), 8000);
+          enqueue(p);
         } catch (err) {
           console.error("Failed to handle donation event", err);
         }
