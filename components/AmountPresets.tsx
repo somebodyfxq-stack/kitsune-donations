@@ -1,2 +1,0 @@
-'use client'; import { clsx } from 'clsx'; type Props={value:number;onChange:(n:number)=>void}; const presets=[20,50,100,200];
-export function AmountPresets({value,onChange}:Props){return(<div className="flex flex-wrap gap-3">{presets.map(p=>(<button key={p} type="button" aria-label={`Обрати ${p} гривень`} className={clsx('pill', value===p && 'ring-2 ring-purple-400')} onClick={()=>onChange(p)}>{p}</button>))}</div>);}
