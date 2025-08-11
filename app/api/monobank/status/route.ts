@@ -10,13 +10,11 @@ interface StatusResponse {
   event: DonationEvent | null;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     try {
-      const requestURL = request.url;
-      await configureWebhook(
-        new URL('/api/monobank/webhook', requestURL).href,
-      );
+      const webhookUrl = process.env.MONOBANK_WEBHOOK_URL;
+      if (webhookUrl) await configureWebhook(webhookUrl);
     } catch (err) {
       console.error('Failed to configure Monobank webhook', err);
     }
