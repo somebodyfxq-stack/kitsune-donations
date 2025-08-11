@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const nickname = (searchParams.get('nickname') || '').trim().slice(0, 64);
   const message = sanitizeMessage(searchParams.get('message') || '');
   const amountParam = Number(searchParams.get('amount') || '0');
-  const jarId = await getSetting('jarId') || process.env.JAR_ID || '';
+  const jarId = await getSetting('jarId');
   if (!jarId) {
     return NextResponse.json({ error: 'Server is not configured. Missing jarId.' }, { status: 500 });
   }
