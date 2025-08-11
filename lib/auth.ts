@@ -1,24 +1,44 @@
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
-import { getServerSession, type NextAuthOptions } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
+import Credentials from 'next-auth/providers/credentials';
 import Twitch from 'next-auth/providers/twitch';
 import { prisma } from './db';
 
-export const authOptions: NextAuthOptions = {
+export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     Twitch({
       clientId: process.env.TWITCH_CLIENT_ID ?? '',
       clientSecret: process.env.TWITCH_CLIENT_SECRET ?? '',
     }),
+    Credentials({
+      name: 'Credentials',
+      credentials: {
+        login: { label: 'Login', type: 'text' },
+        password: { label: 'Password', type: 'password' },
+      },
+      authorize(credentials) {
+        const adminLogin = process.env.ADMIN_LOGIN ?? '';
+        const adminPassword = process.env.ADMIN_PASSWORD ?? '';
+        if (
+          credentials?.login === adminLogin &&
+          credentials?.password === adminPassword
+        ) {
+          return { id: 'admin', role: 'admin', name: 'Admin' };
+        }
+        return null;
+      },
+    }),
   ],
-  session: { strategy: 'database' },
+  session: { strategy: 'database' as const },
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account }: { user: any; account: any }) {
       if (account?.provider === 'twitch') user.role = 'streamer';
+      if (account?.provider === 'credentials') user.role = 'admin';
       return true;
     },
-    async session({ session, user }) {
-      if (session.user) session.user.role = (user as any).role;
+    async session({ session, user }: { session: any; user: any }) {
+      if (session.user && user.role) session.user.role = user.role;
       return session;
     },
   },
