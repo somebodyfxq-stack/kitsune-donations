@@ -52,3 +52,13 @@ test('warns if webhook already configured', async (t) => {
   await configureWebhook('https://example.com/hook');
   assert.strictEqual(warnMock.mock.calls.length, 1);
 });
+
+test('warns if webhook URL check fails', async (t) => {
+  await setupToken();
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response('Check webHookUrl failed', { status: 400 }),
+  );
+  const warnMock = t.mock.method(console, 'warn', () => {});
+  await configureWebhook('https://example.com/hook');
+  assert.strictEqual(warnMock.mock.calls.length, 1);
+});
