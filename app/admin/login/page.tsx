@@ -1,5 +1,5 @@
-import { getCsrfToken } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
+import { getCsrfToken } from "next-auth/react";
+import { Button } from "@/components/ui/button";
 
 export default async function AdminLoginPage() {
   const csrfToken = await getCsrfToken();
@@ -10,7 +10,11 @@ export default async function AdminLoginPage() {
         action="/api/auth/callback/credentials"
         className="flex flex-col gap-4"
       >
-        <input name="csrfToken" type="hidden" defaultValue={csrfToken ?? undefined} />
+        <input
+          name="csrfToken"
+          type="hidden"
+          defaultValue={csrfToken ?? undefined}
+        />
         <label className="flex flex-col gap-1">
           <span className="text-sm text-neutral-300">Login</span>
           <input
@@ -36,4 +40,3 @@ export default async function AdminLoginPage() {
     </main>
   );
 }
-

@@ -1,6 +1,6 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-import { prisma } from '@/lib/db';
+import { promises as fs } from "fs";
+import path from "path";
+import { prisma } from "@/lib/db";
 
 interface JsonIntent {
   identifier: string;
@@ -21,16 +21,16 @@ interface JsonEvent {
 
 async function loadJSON<T>(file: string): Promise<T[]> {
   try {
-    return JSON.parse(await fs.readFile(file, 'utf8')) as T[];
+    return JSON.parse(await fs.readFile(file, "utf8")) as T[];
   } catch {
     return [];
   }
 }
 
 async function main() {
-  const dir = path.join(process.cwd(), 'data');
-  const intents = await loadJSON<JsonIntent>(path.join(dir, 'intents.json'));
-  const events = await loadJSON<JsonEvent>(path.join(dir, 'donations.json'));
+  const dir = path.join(process.cwd(), "data");
+  const intents = await loadJSON<JsonIntent>(path.join(dir, "intents.json"));
+  const events = await loadJSON<JsonEvent>(path.join(dir, "donations.json"));
 
   for (const intent of intents) {
     await prisma.donationIntent.upsert({

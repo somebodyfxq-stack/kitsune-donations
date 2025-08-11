@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { useQueryState, parseAsInteger, parseAsString } from 'nuqs';
-import { AmountPresets } from './amount-presets';
-import { Button } from '@/components/ui/button';
+import { useMemo, useState } from "react";
+import { useQueryState, parseAsInteger, parseAsString } from "nuqs";
+import { AmountPresets } from "./amount-presets";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogTrigger,
@@ -11,19 +11,28 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 
 export function DonationForm(_: DonationFormProps) {
-  const [nickname, setNickname] = useQueryState('nickname', parseAsString.withDefault(''));
-  const [amount, setAmount] = useQueryState('amount', parseAsInteger.withDefault(50));
-  const [message, setMessage] = useQueryState('message', parseAsString.withDefault(''));
+  const [nickname, setNickname] = useQueryState(
+    "nickname",
+    parseAsString.withDefault(""),
+  );
+  const [amount, setAmount] = useQueryState(
+    "amount",
+    parseAsInteger.withDefault(50),
+  );
+  const [message, setMessage] = useQueryState(
+    "message",
+    parseAsString.withDefault(""),
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [youtubeInput, setYoutubeInput] = useState('');
-  const [youtube, setYoutube] = useState('');
+  const [youtubeInput, setYoutubeInput] = useState("");
+  const [youtube, setYoutube] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [error, setError] = useState('');
-  const [toast, setToast] = useState('');
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
 
   const isAmountValid = amount >= 10 && amount <= 29999;
   const isValid = useMemo(() => {
@@ -35,28 +44,30 @@ export function DonationForm(_: DonationFormProps) {
 
   function showToast(text: string) {
     setToast(text);
-    setTimeout(() => setToast(''), 3000);
+    setTimeout(() => setToast(""), 3000);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValid || submitting) return;
     setSubmitting(true);
-    setError('');
+    setError("");
     try {
       const params = new URLSearchParams({
         nickname: nickname.trim(),
         amount: String(Math.round(amount)),
         message: message.trim().slice(0, 500),
       });
-      if (youtube) params.set('youtube', youtube);
-      const res = await fetch(`/api/donations/create?${params}`, { cache: 'no-store' });
+      if (youtube) params.set("youtube", youtube);
+      const res = await fetch(`/api/donations/create?${params}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
-      if (!res.ok || !data?.url) throw new Error(data?.error || 'Помилка');
-      window.open(data.url, '_blank', 'noopener,noreferrer');
-      showToast('Відкрито банку в новій вкладці');
+      if (!res.ok || !data?.url) throw new Error(data?.error || "Помилка");
+      window.open(data.url, "_blank", "noopener,noreferrer");
+      showToast("Відкрито банку в новій вкладці");
     } catch {
-      setError('Сталася помилка. Спробуйте ще раз.');
+      setError("Сталася помилка. Спробуйте ще раз.");
     } finally {
       setSubmitting(false);
     }
@@ -67,26 +78,26 @@ export function DonationForm(_: DonationFormProps) {
     setTesting(true);
     try {
       const body = {
-        nickname: nickname.trim() || 'kitsune_fan',
+        nickname: nickname.trim() || "kitsune_fan",
         amount: Math.round(amount) || 50,
-        message: message.trim() || 'Тест повідомлення',
+        message: message.trim() || "Тест повідомлення",
       };
-      const res = await fetch('/api/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error();
-      showToast('Надіслано тест сповіщення в OBS');
+      showToast("Надіслано тест сповіщення в OBS");
     } catch {
-      showToast('Не вдалося надіслати тест');
+      showToast("Не вдалося надіслати тест");
     } finally {
       setTesting(false);
     }
   }
 
   const videoId = extractYoutubeId(youtubeInput);
-  const embed = videoId ? `https://www.youtube.com/embed/${videoId}` : '';
+  const embed = videoId ? `https://www.youtube.com/embed/${videoId}` : "";
 
   function handleAttach() {
     if (embed) setYoutube(embed);
@@ -94,16 +105,20 @@ export function DonationForm(_: DonationFormProps) {
   }
 
   function handleClear() {
-    setYoutube('');
-    setYoutubeInput('');
+    setYoutube("");
+    setYoutubeInput("");
     setDialogOpen(false);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="card p-6 md:p-8 grid gap-6" aria-label="Форма донату">
+    <form
+      onSubmit={handleSubmit}
+      className="card grid gap-6 p-6 md:p-8"
+      aria-label="Форма донату"
+    >
       <div>
-        <label className="block mb-2 text-sm text-neutral-300">Сума</label>
-        <div className="flex gap-3 items-center">
+        <label className="mb-2 block text-sm text-neutral-300">Сума</label>
+        <div className="flex items-center gap-3">
           <input
             type="number"
             inputMode="numeric"
@@ -111,19 +126,25 @@ export function DonationForm(_: DonationFormProps) {
             max={29999}
             step={1}
             value={amount}
-            onChange={e => setAmount(Number(e.target.value))}
+            onChange={(e) => setAmount(Number(e.target.value))}
             className="input-base text-lg"
             aria-describedby="amount-hint"
             aria-label="Сума донату"
             required
           />
-          <span className="pill flex flex-col items-center justify-center min-w-[80px] text-sm">
+          <span className="pill flex min-w-[80px] flex-col items-center justify-center text-sm">
             <span>₴</span>
             <span className="text-neutral-300">UAH</span>
           </span>
         </div>
-        <p id="amount-hint" className="mt-2 text-xs text-neutral-400">Сума від 10 до 29999 ₴</p>
-        {!isAmountValid && <p className="mt-2 text-xs text-rose-400">Сума має бути від 10 до 29999 ₴</p>}
+        <p id="amount-hint" className="mt-2 text-xs text-neutral-400">
+          Сума від 10 до 29999 ₴
+        </p>
+        {!isAmountValid && (
+          <p className="mt-2 text-xs text-rose-400">
+            Сума має бути від 10 до 29999 ₴
+          </p>
+        )}
         <div className="mt-3">
           <AmountPresets value={amount} onChange={setAmount} />
         </div>
@@ -133,7 +154,7 @@ export function DonationForm(_: DonationFormProps) {
         <input
           type="text"
           value={nickname}
-          onChange={e => setNickname(e.target.value)}
+          onChange={(e) => setNickname(e.target.value)}
           placeholder="ваш нікнейм"
           className="input-base"
           aria-label="Нікнейм"
@@ -144,7 +165,7 @@ export function DonationForm(_: DonationFormProps) {
         <label className="text-sm text-neutral-300">Повідомлення</label>
         <textarea
           value={message}
-          onChange={e => setMessage(e.target.value)}
+          onChange={(e) => setMessage(e.target.value)}
           placeholder="ваше повідомлення (макс. 500 символів)"
           className="input-base min-h-[120px] resize-y"
           maxLength={500}
@@ -156,31 +177,37 @@ export function DonationForm(_: DonationFormProps) {
       <div className="flex gap-3">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button type="button" variant="outline">YouTube</Button>
+            <Button type="button" variant="outline">
+              YouTube
+            </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Посилання на YouTube</DialogTitle>
             </DialogHeader>
             <input
-              className="input-base w-full mt-4"
+              className="input-base mt-4 w-full"
               placeholder="https://youtu.be/..."
               value={youtubeInput}
-              onChange={e => setYoutubeInput(e.target.value)}
+              onChange={(e) => setYoutubeInput(e.target.value)}
             />
             {embed && (
               <div className="mt-4 aspect-video">
                 <iframe
                   src={embed}
-                  className="w-full h-full rounded-md"
+                  className="h-full w-full rounded-md"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
               </div>
             )}
             <DialogFooter className="mt-4 gap-2">
-              <Button type="button" onClick={handleAttach} disabled={!embed}>Прикріпити</Button>
-              <Button type="button" variant="outline" onClick={handleClear}>Очистити</Button>
+              <Button type="button" onClick={handleAttach} disabled={!embed}>
+                Прикріпити
+              </Button>
+              <Button type="button" variant="outline" onClick={handleClear}>
+                Очистити
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -189,21 +216,21 @@ export function DonationForm(_: DonationFormProps) {
         <div className="aspect-video">
           <iframe
             src={youtube}
-            className="w-full h-full rounded-md"
+            className="h-full w-full rounded-md"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
         </div>
       )}
-      {error && <p className="text-rose-400 text-sm">{error}</p>}
-      <div className="grid sm:grid-cols-2 gap-3">
+      {error && <p className="text-sm text-rose-400">{error}</p>}
+      <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="submit"
           className="btn-primary w-full text-lg"
           disabled={!isValid || submitting}
           aria-label="Надіслати донат"
         >
-          {submitting ? 'Готуємо посилання…' : 'Надіслати'}
+          {submitting ? "Готуємо посилання…" : "Надіслати"}
         </button>
         <button
           type="button"
@@ -212,15 +239,16 @@ export function DonationForm(_: DonationFormProps) {
           aria-label="Надіслати тест до OBS"
           disabled={testing}
         >
-          {testing ? 'Тест…' : 'Тест сповіщення'}
+          {testing ? "Тест…" : "Тест сповіщення"}
         </button>
       </div>
-      <div className="text-xs text-neutral-400 text-center">
-        Посилання на банку відкриється у новій вкладці без реферера. Після донату ваш нік, сума і повідомлення з’являться в OBS.
+      <div className="text-center text-xs text-neutral-400">
+        Посилання на банку відкриється у новій вкладці без реферера. Після
+        донату ваш нік, сума і повідомлення з’являться в OBS.
       </div>
       {toast && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-50">
-          <div className="rounded-full bg-white/10 ring-1 ring-white/20 px-4 py-2 text-sm shadow-lg">
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+          <div className="rounded-full bg-white/10 px-4 py-2 text-sm shadow-lg ring-1 ring-white/20">
             {toast}
           </div>
         </div>
@@ -232,10 +260,10 @@ export function DonationForm(_: DonationFormProps) {
 function extractYoutubeId(url: string): string | null {
   try {
     const u = new URL(url);
-    if (u.hostname === 'youtu.be') return u.pathname.slice(1);
-    if (u.hostname.endsWith('youtube.com')) {
-      if (u.pathname === '/watch') return u.searchParams.get('v');
-      if (u.pathname.startsWith('/embed/')) return u.pathname.split('/')[2];
+    if (u.hostname === "youtu.be") return u.pathname.slice(1);
+    if (u.hostname.endsWith("youtube.com")) {
+      if (u.pathname === "/watch") return u.searchParams.get("v");
+      if (u.pathname.startsWith("/embed/")) return u.pathname.split("/")[2];
     }
     return null;
   } catch {
@@ -244,4 +272,3 @@ function extractYoutubeId(url: string): string | null {
 }
 
 interface DonationFormProps {}
-

@@ -1,6 +1,6 @@
-'use client';
-import { useEffect, useState } from 'react';
-import type { DonationEvent } from '@prisma/client';
+"use client";
+import { useEffect, useState } from "react";
+import type { DonationEvent } from "@prisma/client";
 
 export interface StatusData {
   isActive: boolean;
@@ -16,7 +16,7 @@ export function StatusClient({ initial }: StatusClientProps) {
   useEffect(() => {
     const id = setInterval(async () => {
       try {
-        const res = await fetch('/api/monobank/status', { cache: 'no-store' });
+        const res = await fetch("/api/monobank/status", { cache: "no-store" });
         const json: StatusData = await res.json();
         setData(json);
       } catch {}

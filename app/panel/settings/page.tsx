@@ -1,50 +1,70 @@
-import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { getSetting, setSetting } from '@/lib/store';
-import { Button } from '@/components/ui/button';
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { getSetting, setSetting } from "@/lib/store";
+import { Button } from "@/components/ui/button";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'admin') redirect('/login');
+  if (!session || session.user?.role !== "admin") redirect("/login");
 
   const [jarId, monobankToken] = await Promise.all([
-    getSetting('jarId'),
-    getSetting('monobankToken'),
+    getSetting("jarId"),
+    getSetting("monobankToken"),
   ]);
 
   async function save(formData: FormData) {
-    'use server';
-    const jar = formData.get('jarId')?.toString().trim() ?? '';
-    const token = formData.get('monobankToken')?.toString().trim() ?? '';
+    "use server";
+    const jar = formData.get("jarId")?.toString().trim() ?? "";
+    const token = formData.get("monobankToken")?.toString().trim() ?? "";
     await Promise.all([
-      setSetting('jarId', jar),
-      setSetting('monobankToken', token),
+      setSetting("jarId", jar),
+      setSetting("monobankToken", token),
     ]);
-    redirect('/panel/settings');
+    redirect("/panel/settings");
   }
 
   return (
-    <main className="min-h-screen relative overflow-hidden">
+    <main className="relative min-h-screen overflow-hidden">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 -left-40 h-[36rem] w-[36rem] rounded-full bg-fuchsia-600/20 blur-3xl" />
+        <div className="absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-fuchsia-600/20 blur-3xl" />
         <div className="absolute -bottom-40 -right-40 h-[36rem] w-[36rem] rounded-full bg-violet-600/20 blur-3xl" />
       </div>
       <div className="relative mx-auto max-w-2xl px-6 py-14">
         <header className="mb-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold title-gradient drop-shadow-sm">Admin</h1>
-          <div className="mt-3 badge">Settings</div>
+          <h1 className="title-gradient text-4xl font-extrabold drop-shadow-sm md:text-5xl">
+            Admin
+          </h1>
+          <div className="badge mt-3">Settings</div>
         </header>
-        <form action={save} className="card p-6 md:p-8 grid gap-6">
+        <form action={save} className="card grid gap-6 p-6 md:p-8">
           <div className="grid gap-2">
-            <label htmlFor="jarId" className="text-sm text-neutral-300">Jar ID</label>
-            <input id="jarId" name="jarId" defaultValue={jarId ?? ''} className="input-base" required />
+            <label htmlFor="jarId" className="text-sm text-neutral-300">
+              Jar ID
+            </label>
+            <input
+              id="jarId"
+              name="jarId"
+              defaultValue={jarId ?? ""}
+              className="input-base"
+              required
+            />
           </div>
           <div className="grid gap-2">
-            <label htmlFor="monobankToken" className="text-sm text-neutral-300">Monobank token</label>
-            <input id="monobankToken" name="monobankToken" defaultValue={monobankToken ?? ''} className="input-base" required />
+            <label htmlFor="monobankToken" className="text-sm text-neutral-300">
+              Monobank token
+            </label>
+            <input
+              id="monobankToken"
+              name="monobankToken"
+              defaultValue={monobankToken ?? ""}
+              className="input-base"
+              required
+            />
           </div>
-          <Button type="submit" className="w-full">Save</Button>
+          <Button type="submit" className="w-full">
+            Save
+          </Button>
         </form>
       </div>
     </main>

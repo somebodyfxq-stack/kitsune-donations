@@ -7,7 +7,7 @@
  * @returns bounded value
  */
 export function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n))
+  return Math.max(min, Math.min(max, n));
 }
 
 /**
@@ -17,11 +17,14 @@ export function clamp(n: number, min: number, max: number): number {
  */
 export function generateIdentifier(): string {
   function block(length: number): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-    return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return Array.from(
+      { length },
+      () => chars[Math.floor(Math.random() * chars.length)],
+    ).join("");
   }
 
-  return `${block(3)}-${block(6)}`
+  return `${block(3)}-${block(6)}`;
 }
 
 /**
@@ -33,7 +36,10 @@ export function generateIdentifier(): string {
  * @returns sanitized message
  */
 export function sanitizeMessage(message: string): string {
-  return message.trim().slice(0, 500).replace(/[\u0000-\u001F\u007F]/g, '')
+  return message
+    .trim()
+    .slice(0, 500)
+    .replace(/[\u0000-\u001F\u007F]/g, "");
 }
 
 /**
@@ -44,7 +50,11 @@ export function sanitizeMessage(message: string): string {
  * @param message - message to encode
  * @returns Monobank donation URL
  */
-export function buildMonoUrl(jarId: string, amount: number, message: string): string {
-  const encoded = encodeURIComponent(message)
-  return `https://send.monobank.ua/jar/${jarId}?a=${Math.round(amount)}&t=${encoded}`
+export function buildMonoUrl(
+  jarId: string,
+  amount: number,
+  message: string,
+): string {
+  const encoded = encodeURIComponent(message);
+  return `https://send.monobank.ua/jar/${jarId}?a=${Math.round(amount)}&t=${encoded}`;
 }
