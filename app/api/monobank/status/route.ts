@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSetting, listDonationEvents, setSetting } from '@/lib/store';
+import { getSetting, listDonationEvents } from '@/lib/store';
 import { configureWebhook } from '@/lib/monobank-webhook';
 import type { DonationEvent } from '@prisma/client';
 
@@ -13,14 +13,8 @@ interface StatusResponse {
 export async function GET() {
   try {
     try {
-      const webhookUrl = process.env.MONOBANK_WEBHOOK_URL;
-      if (webhookUrl) {
-        const currentUrl = await getSetting('monobankWebhookUrl');
-        if (currentUrl !== webhookUrl) {
-          await configureWebhook(webhookUrl);
-          await setSetting('monobankWebhookUrl', webhookUrl);
-        }
-      }
+      const webhookUrl = await getSetting('monobankWebhookUrl');
+      if (webhookUrl) await configureWebhook(webhookUrl);
     } catch (err) {
       console.error('Failed to configure Monobank webhook', err);
     }
