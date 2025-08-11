@@ -1,14 +1,13 @@
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { StatusClient, StatusData } from './status-client';
 
 export default async function AdminPage() {
-  const token = process.env.ADMIN_TOKEN;
-  if (token) {
-    const auth = headers().get('authorization');
-    if (auth !== `Bearer ${token}`) notFound();
-  }
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') redirect('/login');
 
   const h = headers();
   const proto = h.get('x-forwarded-proto') ?? 'http';
