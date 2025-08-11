@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { appendIntent } from '@/lib/store';
+import { appendIntent, getSetting } from '@/lib/store';
 import { buildMonoUrl, clamp, generateIdentifier, sanitizeMessage } from '@/lib/utils';
 export const runtime='nodejs';
 export async function GET(req: NextRequest){
@@ -7,8 +7,8 @@ export async function GET(req: NextRequest){
   const nickname=(sp.get('nickname')||'').trim().slice(0,64);
   const message=sanitizeMessage(sp.get('message')||'');
   const amountParam=Number(sp.get('amount')||'0');
-  const jarId=process.env.JAR_ID;
-  if(!jarId) return NextResponse.json({error:'Missing JAR_ID'}, {status:500});
+  const jarId=await getSetting('jarId')||process.env.JAR_ID||'';
+  if(!jarId) return NextResponse.json({error:'Missing jarId'}, {status:500});
   const rounded=Math.round(amountParam);
   if(!nickname||!message||!rounded) return NextResponse.json({error:'Invalid input'},{status:400});
   if(rounded<10||rounded>29999) return NextResponse.json({error:'Amount must be between 10 and 29999'},{status:400});

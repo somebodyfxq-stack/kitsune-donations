@@ -1,5 +1,7 @@
+import { getSetting } from '@/lib/store';
+
 export async function configureWebhook(webhookUrl: string): Promise<void> {
-  const token = process.env.MONOBANK_TOKEN;
+  const token = await getSetting('monobankToken') || process.env.MONOBANK_TOKEN;
   if (!token) return;
   const res = await fetch('https://api.monobank.ua/personal/webhook', {
     method: 'POST',

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { appendIntent } from '@/lib/store';
+import { appendIntent, getSetting } from '@/lib/store';
 import { buildMonoUrl, clamp, generateIdentifier, sanitizeMessage } from '@/lib/utils';
 
 export const runtime = 'nodejs';
@@ -9,9 +9,9 @@ export async function GET(req: NextRequest) {
   const nickname = (searchParams.get('nickname') || '').trim().slice(0, 64);
   const message = sanitizeMessage(searchParams.get('message') || '');
   const amountParam = Number(searchParams.get('amount') || '0');
-  const jarId = process.env.JAR_ID;
+  const jarId = await getSetting('jarId') || process.env.JAR_ID || '';
   if (!jarId) {
-    return NextResponse.json({ error: 'Server is not configured. Missing JAR_ID env var.' }, { status: 500 });
+    return NextResponse.json({ error: 'Server is not configured. Missing jarId.' }, { status: 500 });
   }
   const rounded = Math.round(amountParam);
   if (!nickname || !message || !rounded) {

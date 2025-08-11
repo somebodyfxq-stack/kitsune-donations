@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { listDonationEvents } from '@/lib/store';
 import { configureWebhook } from '@/lib/monobank-webhook';
-import type { DonationEvent } from '@/lib/utils';
+import type { DonationEvent } from '@prisma/client';
 
 export const runtime = 'nodejs';
 
