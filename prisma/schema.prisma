@@ -1,0 +1,37 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model DonationIntent {
+  id         Int      @id @default(autoincrement())
+  identifier String   @unique
+  nickname   String
+  message    String
+  amount     Int
+  createdAt  DateTime @default(now())
+  events     DonationEvent[] @relation("IntentEvents")
+}
+
+model DonationEvent {
+  id          Int      @id @default(autoincrement())
+  identifier  String
+  nickname    String
+  message     String
+  amount      Int
+  monoComment String
+  createdAt   DateTime @default(now())
+  intent      DonationIntent? @relation("IntentEvents", fields: [identifier], references: [identifier])
+
+  @@index([identifier])
+  @@unique([identifier, createdAt])
+}
+
+model Setting {
+  key   String @id
+  value String
+}

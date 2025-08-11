@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import type { DonationEvent } from '@/lib/utils';
+import type { DonationEvent } from '@prisma/client';
 
 export interface StatusData {
   isActive: boolean;
-  event: DonationEvent | null;
+  event: (DonationEvent & { createdAt: string }) | null;
 }
 
 interface StatusClientProps {

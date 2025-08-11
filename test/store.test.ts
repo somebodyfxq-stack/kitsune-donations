@@ -3,12 +3,16 @@ import assert from 'node:assert'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
+import { execSync } from 'node:child_process'
 
 async function buildStore() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'store-test-'))
-  process.chdir(dir)
+  process.env.DATABASE_URL = `file:${path.join(dir, 'test.db')}`
+  delete (globalThis as any).prisma
+  execSync('npx prisma db push --schema prisma/schema.prisma', { stdio: 'ignore' })
   const store = await import('../lib/store.ts')
-  return { dir, ...store }
+  const db = await import('../lib/db.ts')
+  return { dir, prisma: db.prisma, ...store }
 }
 
 function buildIntent(i: number) {
@@ -22,11 +26,10 @@ function buildEvent(i: number) {
 }
 
 test('appendIntent handles concurrent writes', async () => {
-  const { dir, appendIntent } = await buildStore()
+  const { appendIntent, prisma } = await buildStore()
   const intents = Array.from({ length: 20 }, (_, i) => buildIntent(i))
   await Promise.all(intents.map(appendIntent))
-  const raw = await fs.readFile(path.join(dir, 'data', 'intents.json'), 'utf8')
-  const saved = JSON.parse(raw)
+  const saved = await prisma.donationIntent.findMany()
   assert.strictEqual(saved.length, intents.length)
 })
 

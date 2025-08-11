@@ -1,9 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { configureWebhook } from '@/lib/monobank-webhook';
+import fs from 'node:fs/promises';
+import path from 'path';
+import os from 'node:os';
+import { execSync } from 'node:child_process';
+
+async function setupToken() {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'webhook-test-'));
+  process.env.DATABASE_URL = `file:${path.join(dir, 'test.db')}`;
+  delete (globalThis as any).prisma;
+  execSync('npx prisma db push --schema prisma/schema.prisma', { stdio: 'ignore' });
+  const { setSetting } = await import('../lib/store.ts');
+  await setSetting('monobankToken', 'token');
+}
 
 test('sends POST to Monobank with token', async (t) => {
-  process.env.MONOBANK_TOKEN = 'token';
+  await setupToken();
   const fetchMock = t.mock.method(globalThis, 'fetch', async () =>
     new Response('{}', { status: 200 }),
   );
@@ -17,11 +30,10 @@ test('sends POST to Monobank with token', async (t) => {
     options?.body,
     JSON.stringify({ webHookUrl: 'https://example.com/hook' }),
   );
-  delete process.env.MONOBANK_TOKEN;
 });
 
 test('throws on non-ok response with details', async (t) => {
-  process.env.MONOBANK_TOKEN = 'token';
+  await setupToken();
   t.mock.method(globalThis, 'fetch', async () =>
     new Response('err', { status: 500 }),
   );
@@ -29,16 +41,14 @@ test('throws on non-ok response with details', async (t) => {
     () => configureWebhook('https://example.com/hook'),
     /Failed to configure Monobank webhook: 500 err/,
   );
-  delete process.env.MONOBANK_TOKEN;
 });
 
 test('warns if webhook already configured', async (t) => {
-  process.env.MONOBANK_TOKEN = 'token';
+  await setupToken();
   t.mock.method(globalThis, 'fetch', async () =>
     new Response('already set', { status: 400 }),
   );
   const warnMock = t.mock.method(console, 'warn', () => {});
   await configureWebhook('https://example.com/hook');
   assert.strictEqual(warnMock.mock.calls.length, 1);
-  delete process.env.MONOBANK_TOKEN;
 });

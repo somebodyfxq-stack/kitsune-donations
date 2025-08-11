@@ -1,19 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { promises as fs } from 'fs';
+import fs from 'node:fs/promises';
 import path from 'path';
-import { GET } from '@/app/api/monobank/status/route.ts';
-import type { DonationEvent } from '@/lib/utils';
+import os from 'node:os';
+import { execSync } from 'node:child_process';
+import type { DonationEvent } from '@prisma/client';
 
-const eventsPath = path.join(process.cwd(), 'data', 'donations.json');
-
-async function writeEvents(events: DonationEvent[]) {
-  await fs.mkdir(path.dirname(eventsPath), { recursive: true });
-  await fs.writeFile(eventsPath, JSON.stringify(events), 'utf8');
+async function setup(events: DonationEvent[]) {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'status-test-'));
+  process.env.DATABASE_URL = `file:${path.join(dir, 'test.db')}`;
+  delete (globalThis as any).prisma;
+  execSync('npx prisma db push --schema prisma/schema.prisma', { stdio: 'ignore' });
+  const { prisma } = await import('../lib/db.ts');
+  if (events.length) {
+    await prisma.donationIntent.createMany({
+      data: events.map((e) => ({
+        identifier: e.identifier.toLowerCase(),
+        nickname: e.nickname,
+        message: e.message,
+        amount: e.amount,
+        createdAt: new Date(e.createdAt),
+      })),
+    });
+    await prisma.donationEvent.createMany({
+      data: events.map((e) => ({
+        ...e,
+        identifier: e.identifier.toLowerCase(),
+        createdAt: new Date(e.createdAt),
+      })),
+    });
+  }
+  const { GET } = await import('../app/api/monobank/status/route.ts');
+  return { GET };
 }
 
 test('reports inactive when no events', async () => {
-  await writeEvents([]);
+  const { GET } = await setup([]);
   const res = await GET(new Request('http://localhost'));
   assert.strictEqual(res.status, 200);
   const body = await res.json();
@@ -28,7 +50,7 @@ test('returns latest event', async () => {
       message: 'm',
       amount: 1,
       monoComment: '',
-      createdAt: '2024-01-01T00:00:00.000Z',
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
     },
     {
       identifier: 'BBB-222',
@@ -36,12 +58,13 @@ test('returns latest event', async () => {
       message: 'n',
       amount: 2,
       monoComment: '',
-      createdAt: '2024-01-02T00:00:00.000Z',
+      createdAt: new Date('2024-01-02T00:00:00.000Z'),
     },
   ];
-  await writeEvents(events);
+  const { GET } = await setup(events);
   const res = await GET(new Request('http://localhost'));
   assert.strictEqual(res.status, 200);
   const body = await res.json();
-  assert.deepStrictEqual(body, { isActive: true, event: events[1] });
+  assert.strictEqual(body.isActive, true);
+  assert.deepStrictEqual(body.event, { ...events[1], identifier: events[1].identifier.toLowerCase(), createdAt: events[1].createdAt.toISOString(), id: body.event.id });
 });
