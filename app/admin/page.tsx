@@ -14,16 +14,33 @@ export default async function AdminPage() {
   });
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-      <UserTable users={users} />
+    <main className="relative min-h-screen overflow-hidden">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-fuchsia-600/20 blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 h-[36rem] w-[36rem] rounded-full bg-violet-600/20 blur-3xl" />
+      </div>
+      <div className="relative mx-auto max-w-2xl px-6 py-14">
+        <header className="mb-8 text-center">
+          <h1 className="title-gradient text-4xl font-extrabold drop-shadow-sm md:text-5xl">
+            Admin
+          </h1>
+          <div className="badge mt-3">Dashboard</div>
+        </header>
+        <div className="card overflow-x-auto p-6 md:p-8">
+          <UserTable users={users} />
+        </div>
+      </div>
     </main>
   );
 }
 
-function UserTable({ users }: { users: User[] }) {
+interface UserTableProps {
+  users: User[];
+}
+
+function UserTable({ users }: UserTableProps) {
   return (
-    <table className="mt-6 w-full text-sm">
+    <table className="w-full text-sm">
       <thead className="text-left">
         <tr>
           <th className="pb-2">Name</th>
@@ -31,7 +48,7 @@ function UserTable({ users }: { users: User[] }) {
           <th className="pb-2">Role</th>
         </tr>
       </thead>
-      <tbody className="divide-y divide-neutral-700">
+      <tbody className="divide-y divide-white/10">
         {users.map((user) => (
           <tr key={user.id} className="h-10">
             <td className="pr-4">{user.name}</td>
