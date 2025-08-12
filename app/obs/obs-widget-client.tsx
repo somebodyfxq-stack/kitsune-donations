@@ -1,6 +1,23 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+
+const MotionDiv = dynamic(
+  () =>
+    import("framer-motion").then((mod) => ({
+      default: mod.motion.div,
+    })),
+  { ssr: false },
+);
+
+const AnimatePresence = dynamic(
+  () =>
+    import("framer-motion").then((mod) => ({
+      default: mod.AnimatePresence,
+    })),
+  { ssr: false },
+);
 
 interface EventPayload {
   identifier: string;
@@ -111,19 +128,35 @@ export function ObsWidgetClient() {
           <span className="text-red-500">Немає з'єднання</span>
         )}
       </div>
-      {visible && data && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-pop">
-          <div
-            className="min-w-[360px] rounded-3xl bg-white/80 px-6 py-4 text-neutral-900 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl"
-            style={{ WebkitBackdropFilter: "blur(16px)" }}
+      <AnimatePresence>
+        {visible && data && (
+          <MotionDiv
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 32 }}
+            transition={{ duration: 0.3 }}
+            className="absolute bottom-10 left-1/2 -translate-x-1/2"
           >
-            <div className="mb-1 text-sm opacity-70">Дякуємо за підтримку!</div>
-            <div className="text-2xl font-bold">{data.nickname}</div>
-            <div className="mt-1 text-xl">₴ {Math.round(data.amount)}</div>
-            <div className="mt-2 text-sm">{data.message}</div>
-          </div>
-        </div>
-      )}
+            <div className="rounded-3xl bg-gradient-to-r from-primary-500 via-secondary-500 to-brand-500 p-[2px]">
+              <div
+                className="min-w-[20rem] rounded-3xl bg-white/80 px-6 py-4 text-neutral-900 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl"
+                style={{ WebkitBackdropFilter: "blur(16px)" }}
+              >
+                <div className="mb-1 text-sm opacity-70 sm:text-base">
+                  Дякуємо за підтримку!
+                </div>
+                <div className="text-2xl font-bold sm:text-3xl">
+                  {data.nickname}
+                </div>
+                <div className="mt-1 text-xl sm:text-2xl">
+                  ₴ {Math.round(data.amount)}
+                </div>
+                <div className="mt-2 text-sm sm:text-base">{data.message}</div>
+              </div>
+            </div>
+          </MotionDiv>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
