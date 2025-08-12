@@ -10,7 +10,7 @@ interface StreamerPageProps {
 export default async function StreamerPage({ params }: StreamerPageProps) {
   const { twitchName } = params;
   const streamer = await prisma.user.findFirst({
-    where: { name: twitchName, accounts: { some: { provider: "twitch" } } },
+    where: { name: { equals: twitchName, mode: "insensitive" }, accounts: { some: { provider: "twitch" } } },
     select: { id: true },
   });
   if (!streamer) notFound();
