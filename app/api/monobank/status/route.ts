@@ -10,11 +10,17 @@ interface StatusResponse {
   event: DonationEvent | null;
 }
 
+let configuredWebhookUrl: string | undefined;
+
 export async function GET() {
   try {
     try {
       const webhookUrl = await getSetting("monobankWebhookUrl");
-      if (webhookUrl) await configureWebhook(webhookUrl);
+      if (webhookUrl && configuredWebhookUrl !== webhookUrl) {
+        await configureWebhook(webhookUrl);
+        configuredWebhookUrl = webhookUrl;
+      }
+      if (!webhookUrl) configuredWebhookUrl = undefined;
     } catch (err) {
       console.error("Failed to configure Monobank webhook", err);
     }
