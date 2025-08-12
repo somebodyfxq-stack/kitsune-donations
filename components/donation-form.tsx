@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
 
 export function DonationForm(_: DonationFormProps) {
   const [nickname, setNickname] = useQueryState(
@@ -111,109 +112,106 @@ export function DonationForm(_: DonationFormProps) {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="card grid gap-6 p-6 md:p-8"
-      aria-label="Форма донату"
-    >
-      <div>
-        <label className="mb-2 block text-sm text-neutral-300">Сума</label>
-        <div className="flex items-center gap-3">
+    <Card asChild className="grid gap-6 p-6 md:p-8">
+      <form onSubmit={handleSubmit} aria-label="Форма донату">
+        <div>
+          <label className="mb-2 block text-sm text-neutral-300">Сума</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={10}
+              max={29999}
+              step={1}
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              className="input-base text-lg"
+              aria-describedby="amount-hint"
+              aria-label="Сума донату"
+              required
+            />
+            <span className="pill flex min-w-[80px] flex-col items-center justify-center text-sm">
+              <span>₴</span>
+              <span className="text-neutral-300">UAH</span>
+            </span>
+          </div>
+          <p id="amount-hint" className="mt-2 text-xs text-neutral-400">
+            Сума від 10 до 29999 ₴
+          </p>
+          {!isAmountValid && (
+            <p className="mt-2 text-xs text-rose-400">
+              Сума має бути від 10 до 29999 ₴
+            </p>
+          )}
+          <div className="mt-3">
+            <AmountPresets value={amount} onChange={setAmount} />
+          </div>
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm text-neutral-300">Ім&apos;я</label>
           <input
-            type="number"
-            inputMode="numeric"
-            min={10}
-            max={29999}
-            step={1}
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="input-base text-lg"
-            aria-describedby="amount-hint"
-            aria-label="Сума донату"
+            type="text"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="ваш нікнейм"
+            className="input-base"
+            aria-label="Нікнейм"
             required
           />
-          <span className="pill flex min-w-[80px] flex-col items-center justify-center text-sm">
-            <span>₴</span>
-            <span className="text-neutral-300">UAH</span>
-          </span>
         </div>
-        <p id="amount-hint" className="mt-2 text-xs text-neutral-400">
-          Сума від 10 до 29999 ₴
-        </p>
-        {!isAmountValid && (
-          <p className="mt-2 text-xs text-rose-400">
-            Сума має бути від 10 до 29999 ₴
-          </p>
-        )}
-        <div className="mt-3">
-          <AmountPresets value={amount} onChange={setAmount} />
+        <div className="grid gap-2">
+          <label className="text-sm text-neutral-300">Повідомлення</label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="ваше повідомлення (макс. 500 символів)"
+            className="input-base min-h-[120px] resize-y"
+            maxLength={500}
+            aria-label="Повідомлення"
+            required
+          />
+          <p className="text-xs text-neutral-500">Максимум символів – 500</p>
         </div>
-      </div>
-      <div className="grid gap-2">
-        <label className="text-sm text-neutral-300">Ім&apos;я</label>
-        <input
-          type="text"
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-          placeholder="ваш нікнейм"
-          className="input-base"
-          aria-label="Нікнейм"
-          required
-        />
-      </div>
-      <div className="grid gap-2">
-        <label className="text-sm text-neutral-300">Повідомлення</label>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="ваше повідомлення (макс. 500 символів)"
-          className="input-base min-h-[120px] resize-y"
-          maxLength={500}
-          aria-label="Повідомлення"
-          required
-        />
-        <p className="text-xs text-neutral-500">Максимум символів – 500</p>
-      </div>
-      <div className="flex gap-3">
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button type="button" variant="outline">
-              YouTube
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Посилання на YouTube</DialogTitle>
-            </DialogHeader>
-            <input
-              className="input-base mt-4 w-full"
-              placeholder="https://youtu.be/..."
-              value={youtubeInput}
-              onChange={(e) => setYoutubeInput(e.target.value)}
-            />
-            {embed && (
-              <div className="mt-4 aspect-video">
-                <iframe
-                  src={embed}
-                  className="h-full w-full rounded-md"
-                  loading="lazy"
-                  title="Попередній перегляд YouTube відео"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            )}
-            <DialogFooter className="mt-4 gap-2">
-              <Button type="button" onClick={handleAttach} disabled={!embed}>
-                Прикріпити
+        <div className="flex gap-3">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline">
+                YouTube
               </Button>
-              <Button type="button" variant="outline" onClick={handleClear}>
-                Очистити
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Посилання на YouTube</DialogTitle>
+              </DialogHeader>
+              <input
+                className="input-base mt-4 w-full"
+                placeholder="https://youtu.be/..."
+                value={youtubeInput}
+                onChange={(e) => setYoutubeInput(e.target.value)}
+              />
+              {embed && (
+                <div className="mt-4 aspect-video">
+                  <iframe
+                    src={embed}
+                    className="h-full w-full rounded-md"
+                    loading="lazy"
+                    title="Попередній перегляд YouTube відео"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+              <DialogFooter className="mt-4 gap-2">
+                <Button type="button" onClick={handleAttach} disabled={!embed}>
+                  Прикріпити
+                </Button>
+                <Button type="button" variant="outline" onClick={handleClear}>
+                  Очистити
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       {youtube && (
         <div className="aspect-video">
           <iframe
@@ -259,7 +257,8 @@ export function DonationForm(_: DonationFormProps) {
           </div>
         </div>
       )}
-    </form>
+      </form>
+    </Card>
   );
 }
 

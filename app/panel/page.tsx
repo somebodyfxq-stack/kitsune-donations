@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { StatusClient, StatusData } from "./status-client";
+import { Card } from "@/components/ui/card";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -30,13 +31,13 @@ export default async function AdminPage() {
           </h1>
           <div className="badge mt-3">Monobank status</div>
         </header>
-        <div className="card p-6 md:p-8">
+        <Card className="p-6 md:p-8">
           <Suspense
             fallback={<p className="text-center text-neutral-400">Loading…</p>}
           >
             <StatusClient initial={status} />
           </Suspense>
-        </div>
+        </Card>
       </div>
     </main>
   );
