@@ -196,6 +196,8 @@ export function DonationForm(_: DonationFormProps) {
                 <iframe
                   src={embed}
                   className="h-full w-full rounded-md"
+                  loading="lazy"
+                  title="Попередній перегляд YouTube відео"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
@@ -217,6 +219,8 @@ export function DonationForm(_: DonationFormProps) {
           <iframe
             src={youtube}
             className="h-full w-full rounded-md"
+            loading="lazy"
+            title="Прикріплене YouTube відео"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />

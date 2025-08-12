@@ -129,6 +129,9 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
         playerVars: { autoplay: 1, controls: 0, rel: 0 },
         events: { onStateChange: handleState },
       });
+      const iframe = playerRef.current.getIframe();
+      iframe.setAttribute("loading", "lazy");
+      iframe.setAttribute("title", "Donation video player");
     }
     if (window.YT?.Player) createPlayer();
     else {
@@ -152,6 +155,7 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
 interface YTPlayer {
   loadVideoById(id: string): void;
   destroy(): void;
+  getIframe(): HTMLIFrameElement;
 }
 
 declare global {
