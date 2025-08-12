@@ -10,6 +10,9 @@ const buttonVariants = cva(
         default: "bg-brand-500 text-white hover:bg-brand-600",
         outline:
           "border border-neutral-700 bg-transparent hover:bg-neutral-800",
+        primary:
+          "rounded-2xl bg-gradient-to-r from-primary-500 to-secondary-500 font-semibold shadow-lg shadow-secondary-900/20 hover:from-primary-400 hover:to-secondary-400",
+        ghost: "rounded-2xl ring-1 ring-white/15 hover:bg-white/5",
       },
       size: {
         default: "h-9 px-4 py-2",

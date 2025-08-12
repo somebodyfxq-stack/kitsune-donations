@@ -228,23 +228,25 @@ export function DonationForm(_: DonationFormProps) {
       )}
       {error && <p className="text-sm text-rose-400">{error}</p>}
       <div className="grid gap-3 sm:grid-cols-2">
-        <button
+        <Button
           type="submit"
-          className="btn-primary w-full text-lg"
+          variant="primary"
+          className="h-auto w-full text-lg"
           disabled={!isValid || submitting}
           aria-label="Надіслати донат"
         >
           {submitting ? "Готуємо посилання…" : "Надіслати"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="btn-ghost w-full text-lg"
+          variant="ghost"
+          className="h-auto w-full text-lg"
           onClick={handleTest}
           aria-label="Надіслати тест до OBS"
           disabled={testing}
         >
           {testing ? "Тест…" : "Тест сповіщення"}
-        </button>
+        </Button>
       </div>
       <div className="text-center text-xs text-neutral-400">
         Посилання на банку відкриється у новій вкладці без реферера. Після
