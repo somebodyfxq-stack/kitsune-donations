@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSetting, setSetting } from "@/lib/store";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
@@ -37,35 +38,37 @@ export default async function SettingsPage() {
           </h1>
           <div className="badge mt-3">Settings</div>
         </header>
-        <form action={save} className="card grid gap-6 p-6 md:p-8">
-          <div className="grid gap-2">
-            <label htmlFor="jarId" className="text-sm text-neutral-300">
-              Jar ID
-            </label>
-            <input
-              id="jarId"
-              name="jarId"
-              defaultValue={jarId ?? ""}
-              className="input-base"
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <label htmlFor="monobankToken" className="text-sm text-neutral-300">
-              Monobank token
-            </label>
-            <input
-              id="monobankToken"
-              name="monobankToken"
-              defaultValue={monobankToken ?? ""}
-              className="input-base"
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full">
-            Save
-          </Button>
-        </form>
+        <Card asChild className="grid gap-6 p-6 md:p-8">
+          <form action={save}>
+            <div className="grid gap-2">
+              <label htmlFor="jarId" className="text-sm text-neutral-300">
+                Jar ID
+              </label>
+              <input
+                id="jarId"
+                name="jarId"
+                defaultValue={jarId ?? ""}
+                className="input-base"
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="monobankToken" className="text-sm text-neutral-300">
+                Monobank token
+              </label>
+              <input
+                id="monobankToken"
+                name="monobankToken"
+                defaultValue={monobankToken ?? ""}
+                className="input-base"
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              Save
+            </Button>
+          </form>
+        </Card>
       </div>
     </main>
   );

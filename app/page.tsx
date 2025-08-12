@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { authOptions } from "@/lib/auth";
 
 export default async function HomePage() {
@@ -13,7 +14,7 @@ export default async function HomePage() {
         <div className="absolute -bottom-40 -right-40 h-[36rem] w-[36rem] rounded-full bg-violet-600/20 blur-3xl" />
       </div>
       <div className="relative mx-auto max-w-2xl px-6 py-14">
-        <div className="card flex flex-col gap-4 p-6 md:p-8">
+        <Card className="flex flex-col gap-4 p-6 md:p-8">
           {session ? (
             <Button asChild variant="primary">
               <Link href="/panel">Кабінет</Link>
@@ -28,7 +29,7 @@ export default async function HomePage() {
               </Button>
             </>
           )}
-        </div>
+        </Card>
       </div>
     </main>
   );
