@@ -1,9 +1,18 @@
 import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 export const runtime = "nodejs";
 
-const client = new TextToSpeechClient();
+declare global {
+  // eslint-disable-next-line no-var
+  var ttsClient: TextToSpeechClient | undefined;
+}
+
+function getTtsClient(): TextToSpeechClient {
+  globalThis.ttsClient ??= new TextToSpeechClient();
+  return globalThis.ttsClient;
+}
 
 export async function GET(req: Request) {
+  const client = getTtsClient();
   const { searchParams } = new URL(req.url);
   const text = searchParams.get("text") ?? "";
   const voice = searchParams.get("voice") ?? "uk-UA-Standard-A";
