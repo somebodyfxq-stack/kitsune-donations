@@ -1,10 +1,12 @@
 import { getServerSession } from "next-auth/next";
 import Credentials from "next-auth/providers/credentials";
 import Twitch from "next-auth/providers/twitch";
+import type { Account, NextAuthOptions, Session, User } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 
 const isProduction = process.env.NODE_ENV === "production";
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     Twitch({
       clientId: process.env.TWITCH_CLIENT_ID ?? "",
@@ -62,17 +64,17 @@ export const authOptions = {
   },
   pages: { signIn: "/login" },
   callbacks: {
-    async signIn({ user, account }: { user: any; account: any }) {
+    async signIn({ user, account }: { user: User; account: Account | null }) {
       if (account?.provider === "twitch") user.role = "streamer";
       if (account?.provider === "credentials") user.role = "admin";
       return true;
     },
-    async jwt({ token, user }: { token: any; user?: any }) {
+    async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user?.id) token.id = user.id;
       if (user?.role) token.role = user.role;
       return token;
     },
-    async session({ session, token }: { session: any; token: any }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (session.user) {
         if (token.id) session.user.id = token.id as string;
         if (token.role) session.user.role = token.role as string;
