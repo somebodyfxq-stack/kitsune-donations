@@ -1,5 +1,8 @@
 import "./globals.css";
+import { Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
@@ -7,7 +10,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <head>
         <meta name="referrer" content="no-referrer" />
       </head>
-      <body>
+      <body className={`${inter.variable} font-sans`}>
         <NuqsAdapter>{children}</NuqsAdapter>
       </body>
     </html>

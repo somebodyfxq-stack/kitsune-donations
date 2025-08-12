@@ -2,6 +2,7 @@ import type { Config } from "tailwindcss";
 export default {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
+    fontFamily: { sans: ["var(--font-inter)"] },
     extend: {
       colors: {
         brand: { 500: "#7C4DFF", 600: "#673AB7" },
