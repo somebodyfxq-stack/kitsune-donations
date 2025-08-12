@@ -13,22 +13,30 @@ export interface DonationPayload {
   monoComment?: string;
 }
 
-let clients: Client[] = [];
-let idCounter = 1;
+interface SseGlobal {
+  __sseClients?: Client[];
+  __sseIdCounter?: number;
+}
+
+const sseGlobal = globalThis as typeof globalThis & SseGlobal;
+sseGlobal.__sseClients ??= [];
+sseGlobal.__sseIdCounter ??= 1;
+
+const clients = sseGlobal.__sseClients;
 
 export function addClient() {
-  const id = idCounter++;
+  const id = sseGlobal.__sseIdCounter!;
+  sseGlobal.__sseIdCounter! += 1;
   const stream = new ReadableStream({
     start(controller) {
-      const c: Client = { id, controller };
-      clients.push(c);
+      const client: Client = { id, controller };
+      clients.push(client);
       const encoder = new TextEncoder();
-      const send = (event: string, data: string) =>
-        controller.enqueue(
-          encoder.encode(`event: ${event}\ndata: ${data}\n\n`),
-        );
+      function send(event: string, data: string) {
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${data}\n\n`));
+      }
       send("ping", "ok");
-      c.timer = setInterval(() => {
+      client.timer = setInterval(() => {
         try {
           send("ping", String(Date.now()));
         } catch (err) {
@@ -37,9 +45,10 @@ export function addClient() {
       }, 15000);
     },
     cancel() {
-      const c = clients.find((x) => x.id === id);
-      if (c?.timer) clearInterval(c.timer);
-      clients = clients.filter((x) => x.id !== id);
+      const index = clients.findIndex((c) => c.id === id);
+      if (index === -1) return;
+      const [client] = clients.splice(index, 1);
+      if (client.timer) clearInterval(client.timer);
     },
   });
   return { id, stream };
