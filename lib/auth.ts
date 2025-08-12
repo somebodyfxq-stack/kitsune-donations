@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import Credentials from "next-auth/providers/credentials";
 import Twitch from "next-auth/providers/twitch";
 import { prisma } from "./db";
-import { createRedirect } from "./redirect";
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
@@ -42,7 +41,6 @@ export const authOptions = {
       if (session.user && user.role) session.user.role = user.role;
       return session;
     },
-    redirect: createRedirect(getAuthSession),
   },
 };
 

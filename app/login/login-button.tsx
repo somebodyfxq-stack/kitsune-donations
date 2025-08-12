@@ -3,7 +3,7 @@ import { signIn } from "next-auth/react";
 
 export function LoginButton() {
   function handleLogin() {
-    signIn("twitch");
+    signIn("twitch", { callbackUrl: "/panel" });
   }
   return (
     <button
