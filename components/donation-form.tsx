@@ -13,6 +13,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
+import {
+  ToastProvider,
+  Toast,
+  ToastTitle,
+  ToastClose,
+  ToastViewport,
+} from "@/components/ui/toast";
 
 export function DonationForm(_: DonationFormProps) {
   const [nickname, setNickname] = useQueryState(
@@ -33,7 +40,8 @@ export function DonationForm(_: DonationFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   const isAmountValid = amount >= 10 && amount <= 29999;
   const isValid = useMemo(() => {
@@ -44,8 +52,8 @@ export function DonationForm(_: DonationFormProps) {
   }, [nickname, amount, message, isAmountValid]);
 
   function showToast(text: string) {
-    setToast(text);
-    setTimeout(() => setToast(""), 3000);
+    setToastMessage(text);
+    setToastOpen(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -112,11 +120,12 @@ export function DonationForm(_: DonationFormProps) {
   }
 
   return (
-    <Card
-      asChild
-      className="grid gap-6 px-4 py-5 sm:px-6 sm:py-6 md:px-8 md:py-8 lg:px-10 lg:py-10"
-    >
-      <form onSubmit={handleSubmit} aria-label="Форма донату">
+    <ToastProvider duration={3000}>
+      <Card
+        asChild
+        className="grid gap-6 px-4 py-5 sm:px-6 sm:py-6 md:px-8 md:py-8 lg:px-10 lg:py-10"
+      >
+        <form onSubmit={handleSubmit} aria-label="Форма донату">
         <div>
           <label className="mb-2 block text-sm text-neutral-300">Сума</label>
           <div className="flex items-center gap-3">
@@ -253,17 +262,14 @@ export function DonationForm(_: DonationFormProps) {
         Посилання на банку відкриється у новій вкладці без реферера. Після
         донату ваш нік, сума і повідомлення з’являться в OBS.
       </div>
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
-          <div
-            className="rounded-full bg-white/10 px-3 py-2 text-sm shadow-lg ring-1 ring-white/20 sm:px-4 sm:py-2 md:px-6 md:py-3 lg:px-8 lg:py-4"
-          >
-            {toast}
-          </div>
-        </div>
-      )}
-      </form>
-    </Card>
+        </form>
+      </Card>
+      <Toast open={toastOpen} onOpenChange={setToastOpen}>
+        <ToastTitle>{toastMessage}</ToastTitle>
+        <ToastClose />
+      </Toast>
+      <ToastViewport />
+    </ToastProvider>
   );
 }
 
