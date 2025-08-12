@@ -3,10 +3,13 @@ import Credentials from "next-auth/providers/credentials";
 import Twitch from "next-auth/providers/twitch";
 import type { Account, NextAuthOptions, Session, User } from "next-auth";
 import type { JWT } from "next-auth/jwt";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import { prisma } from "@/lib/db";
 
 const isProduction = process.env.NODE_ENV === "production";
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
   providers: [
     Twitch({
       clientId: process.env.TWITCH_CLIENT_ID ?? "",
