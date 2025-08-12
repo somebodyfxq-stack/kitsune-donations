@@ -1,15 +1,17 @@
 "use client";
 import { signIn } from "next-auth/react";
+import { Button } from "@/components/ui/button";
 
 export function LoginButton() {
   function handleLogin() {
     signIn("twitch", { callbackUrl: "/panel" });
   }
   return (
-    <button
+    <Button
       type="button"
       onClick={handleLogin}
-      className="btn-primary inline-flex items-center gap-2"
+      variant="primary"
+      className="gap-2"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -21,6 +23,6 @@ export function LoginButton() {
         <path d="M13.765 5.882h2.118v5.647h-2.118zm-4.235 0h2.118v5.647H9.53z" />
       </svg>
       Sign in with Twitch
-    </button>
+    </Button>
   );
 }

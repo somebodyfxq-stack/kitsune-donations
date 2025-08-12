@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
+import { Button } from "@/components/ui/button";
 import { authOptions } from "@/lib/auth";
 
 export default async function HomePage() {
@@ -14,17 +15,17 @@ export default async function HomePage() {
       <div className="relative mx-auto max-w-2xl px-6 py-14">
         <div className="card flex flex-col gap-4 p-6 md:p-8">
           {session ? (
-            <Link href="/panel" className="btn-primary text-center">
-              Кабінет
-            </Link>
+            <Button asChild variant="primary">
+              <Link href="/panel">Кабінет</Link>
+            </Button>
           ) : (
             <>
-              <Link href="/login" className="btn-primary text-center">
-                Створити сторінку
-              </Link>
-              <Link href="/panel" className="btn-ghost text-center">
-                Увійти
-              </Link>
+              <Button asChild variant="primary">
+                <Link href="/login">Створити сторінку</Link>
+              </Button>
+              <Button asChild variant="ghost">
+                <Link href="/panel">Увійти</Link>
+              </Button>
             </>
           )}
         </div>

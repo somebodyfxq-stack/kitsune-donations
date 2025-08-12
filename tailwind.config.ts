@@ -3,7 +3,11 @@ export default {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
-      colors: { brand: { 500: "#7C4DFF", 600: "#673AB7" } },
+      colors: {
+        brand: { 500: "#7C4DFF", 600: "#673AB7" },
+        primary: { 400: "#A78BFA", 500: "#8B5CF6" },
+        secondary: { 400: "#F0ABFC", 500: "#D946EF" },
+      },
       keyframes: {
         pop: {
           "0%": { transform: "translate(-50%,10px) scale(.96)", opacity: "0" },
