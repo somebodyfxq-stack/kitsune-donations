@@ -1,11 +1,10 @@
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { getServerSession } from "next-auth/next";
 import Credentials from "next-auth/providers/credentials";
 import Twitch from "next-auth/providers/twitch";
-import { prisma } from "./db";
+
+const isProduction = process.env.NODE_ENV === "production";
 
 export const authOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     Twitch({
       clientId: process.env.TWITCH_CLIENT_ID ?? "",
@@ -30,8 +29,37 @@ export const authOptions = {
       },
     }),
   ],
-  session: { strategy: "jwt" as const },
+  trustHost: true,
+  session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProduction,
+      },
+    },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: isProduction,
+      },
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProduction,
+      },
+    },
+  },
   pages: { signIn: "/login" },
   callbacks: {
     async signIn({ user, account }: { user: any; account: any }) {
