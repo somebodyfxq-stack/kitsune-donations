@@ -14,14 +14,21 @@ interface StatusClientProps {
 export function StatusClient({ initial }: StatusClientProps) {
   const [data, setData] = useState<StatusData>(initial);
   useEffect(() => {
-    const id = setInterval(async () => {
+    const es = new EventSource("/api/stream?ts=" + Date.now());
+    es.addEventListener("donation", (ev) => {
       try {
-        const res = await fetch("/api/monobank/status", { cache: "no-store" });
-        const json: StatusData = await res.json();
-        setData(json);
-      } catch {}
-    }, 10_000);
-    return () => clearInterval(id);
+        const event: DonationEvent & { createdAt: string } = JSON.parse(
+          (ev as MessageEvent).data
+        );
+        setData((prev) => ({ ...prev, isActive: true, event }));
+      } catch (err) {
+        console.error("Failed to handle donation event", err);
+      }
+    });
+    es.addEventListener("error", (err) => {
+      console.error("EventSource error", err);
+    });
+    return () => es.close();
   }, []);
   return <StatusDetails data={data} />;
 }
