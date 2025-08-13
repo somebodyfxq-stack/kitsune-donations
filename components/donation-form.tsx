@@ -133,7 +133,7 @@ export function DonationForm(_: DonationFormProps) {
           required
         />
       </div>
-      <div className="grid gap-1">
+      <div className="grid gap-2">
         <label className="text-sm text-neutral-300">Повідомлення</label>
         <textarea
           value={message}
