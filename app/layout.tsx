@@ -1,21 +1,27 @@
 import "./globals.css";
-import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense } from "react";
+import { SessionProvider } from "next-auth/react";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { NavAuth } from "@/components/nav-auth";
+import { getAuthSession } from "@/lib/auth";
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const session = await getAuthSession();
+
   return (
     <html lang="uk">
       <head>
         <meta name="referrer" content="no-referrer" />
       </head>
       <body>
-        <NuqsAdapter>{children}</NuqsAdapter>
-        <div className="fixed right-4 top-4">
-          <Suspense fallback={null}>
-            <NavAuth />
-          </Suspense>
-        </div>
+        <SessionProvider session={session}>
+          <NuqsAdapter>{children}</NuqsAdapter>
+          <div className="fixed right-4 top-4">
+            <Suspense fallback={null}>
+              <NavAuth />
+            </Suspense>
+          </div>
+        </SessionProvider>
       </body>
     </html>
   );
