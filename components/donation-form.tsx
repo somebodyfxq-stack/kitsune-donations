@@ -184,7 +184,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
               </svg>
             </button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md card">
             <DialogHeader>
               <DialogTitle>Посилання на YouTube</DialogTitle>
             </DialogHeader>
