@@ -127,7 +127,7 @@ export function DonationForm(_: DonationFormProps) {
             step={1}
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
-            className="input-base text-lg"
+            className="input-base appearance-none text-lg [-moz-appearance:textfield] [-webkit-appearance:textfield]"
             aria-describedby="amount-hint"
             aria-label="Сума донату"
             required
