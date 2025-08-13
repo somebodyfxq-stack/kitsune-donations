@@ -27,7 +27,7 @@ export default async function StreamerPage({ params }: StreamerPageProps) {
           <h1 className="title-gradient text-4xl font-extrabold drop-shadow-sm md:text-5xl">
             Підтримати {twitchName}
           </h1>
-          <div className="badge mt-3">Донат</div>
+          <div className="badge mt-3">Донат через Monobank 💖</div>
         </header>
         <Suspense fallback={<div className="card p-6 md:p-8">Завантаження…</div>}>
           <DonationForm />
