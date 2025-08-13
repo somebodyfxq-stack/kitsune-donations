@@ -126,7 +126,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
           type="text"
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
-          placeholder="ваш нікнейм"
+          placeholder="Ваш нікнейм"
           className="input-base py-2.5"
           aria-label="Нікнейм"
           maxLength={30}
@@ -139,7 +139,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onInput={adjustTextareaHeight}
-          placeholder="ваше повідомлення (макс. 500 символів)"
+          placeholder="Ваше повідомлення (макс. 500 символів)"
           className="input-base min-h-[120px] resize-none overflow-hidden"
           maxLength={500}
           aria-label="Повідомлення"
@@ -237,8 +237,8 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
         {submitting ? "Готуємо посилання…" : "Надіслати"}
       </button>
       <div className="text-center text-xs text-neutral-400 break-words">
-        Лінк відкриється в новій вкладці 😉<br/>
-        Після оплати твій нік, сума та меседж залетять прямо на стрім! 🚀
+        Після донату твій нікнейм, сума та меседж залетять прямо на стрім! 🚀<br/>
+        Посилання на монобанку відкриється в новій вкладці 😉
       </div>
     </form>
   );
