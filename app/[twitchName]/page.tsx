@@ -17,11 +17,22 @@ export default async function StreamerPage({ params }: StreamerPageProps) {
   if (!streamer) notFound();
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-6 text-2xl font-bold">Підтримати {twitchName}</h1>
-      <Suspense fallback={<div className="card p-6">Завантаження…</div>}>
-        <DonationForm />
-      </Suspense>
+    <main className="relative min-h-screen overflow-hidden">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-fuchsia-600/20 blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 h-[36rem] w-[36rem] rounded-full bg-violet-600/20 blur-3xl" />
+      </div>
+      <div className="relative mx-auto max-w-2xl px-6 py-14">
+        <header className="mb-8 text-center">
+          <h1 className="title-gradient text-4xl font-extrabold drop-shadow-sm md:text-5xl">
+            Підтримати {twitchName}
+          </h1>
+          <div className="badge mt-3">Донат</div>
+        </header>
+        <Suspense fallback={<div className="card p-6 md:p-8">Завантаження…</div>}>
+          <DonationForm />
+        </Suspense>
+      </div>
     </main>
   );
 }
