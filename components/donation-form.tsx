@@ -211,14 +211,14 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
                 type="button"
                 onClick={handleAttach}
                 disabled={!embed}
-                className="btn-primary px-5 py-3 rounded-2xl"
+                className="btn-primary"
               >
                 Прикріпити
               </button>
               <button
                 type="button"
                 onClick={handleClear}
-                className="rounded-2xl bg-white/5 px-5 py-3.5 ring-1 ring-white/10 hover:bg-white/10 focus:ring-2 focus:ring-purple-400"
+                className="btn-secondary"
               >
                 Очистити
               </button>

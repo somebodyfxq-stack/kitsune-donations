@@ -9,19 +9,19 @@ export function NavAuth() {
   if (!session?.user)
     return (
       <div className="flex gap-2">
-        <Link href="/register" className="inline-block">
-          <button className="btn btn-ghost">Зареєструватись</button>
+        <Link href="/register" className="btn-secondary">
+          Зареєструватись
         </Link>
-        <Link href="/login" className="inline-block">
-          <button className="btn btn-primary">Увійти</button>
+        <Link href="/login" className="btn-primary">
+          Увійти
         </Link>
       </div>
     );
 
   return (
     <div>
-      <Link href="/panel" className="inline-block">
-        <button className="btn btn-primary">Кабінет</button>
+      <Link href="/panel" className="btn-primary">
+        Кабінет
       </Link>
     </div>
   );

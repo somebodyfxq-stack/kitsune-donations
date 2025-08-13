@@ -19,6 +19,19 @@ body {
 .btn-primary {
   @apply inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3 font-semibold shadow-lg shadow-fuchsia-900/20 hover:from-violet-400 hover:to-fuchsia-400 disabled:cursor-not-allowed disabled:opacity-50;
 }
+.text-gradient {
+  @apply bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent;
+}
+.text-gradient-underline {
+  @apply relative inline-block bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent;
+}
+.text-gradient-underline::after {
+  content: "";
+  @apply absolute left-0 bottom-0 h-px w-full bg-gradient-to-r from-violet-500 to-fuchsia-500;
+}
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-2xl px-6 py-3 font-semibold ring-1 ring-white/15 hover:bg-white/5 bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent disabled:cursor-not-allowed disabled:opacity-50;
+}
 .btn-ghost {
   @apply inline-flex items-center justify-center rounded-2xl px-5 py-3 font-medium ring-1 ring-white/15 hover:bg-white/5;
 }
