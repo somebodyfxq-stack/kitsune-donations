@@ -127,7 +127,7 @@ export function DonationForm(_: DonationFormProps) {
             step={1}
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
-            className="input-base text-lg"
+            className="input-base appearance-none text-lg [-moz-appearance:textfield] [-webkit-appearance:textfield]"
             aria-describedby="amount-hint"
             aria-label="Сума донату"
             required
@@ -246,7 +246,7 @@ export function DonationForm(_: DonationFormProps) {
           {testing ? "Тест…" : "Тест сповіщення"}
         </button>
       </div>
-      <div className="text-center text-xs text-neutral-400 break-words">
+      <div className="break-words text-center text-xs text-neutral-400">
         💖 Донать через Monobank! Лінк відкриється в новій вкладці. 😉 Після
         оплати твій нік, сума та меседж залетять прямо на стрім! 🚀
       </div>
