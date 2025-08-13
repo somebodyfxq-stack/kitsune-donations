@@ -98,7 +98,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
             step={1}
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
-            className="input-base appearance-none text-lg [-moz-appearance:textfield] [-webkit-appearance:textfield]"
+            className="input-base py-2.5 appearance-none text-lg [-moz-appearance:textfield] [-webkit-appearance:textfield]"
             aria-describedby="amount-hint"
             aria-label="Сума донату"
             required
@@ -127,7 +127,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           placeholder="ваш нікнейм"
-          className="input-base"
+          className="input-base py-2.5"
           aria-label="Нікнейм"
           maxLength={30}
           required
@@ -187,7 +187,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
               <DialogTitle>Посилання на YouTube</DialogTitle>
             </DialogHeader>
             <input
-              className="input-base mt-3 w-full"
+              className="input-base mt-3 w-full py-2.5"
               placeholder="https://youtu.be/..."
               value={youtubeInput}
               onChange={(e) => setYoutubeInput(e.target.value)}
