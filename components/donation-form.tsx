@@ -113,12 +113,12 @@ export function DonationForm(_: DonationFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="card grid gap-6 p-6 md:p-8"
+      className="card grid gap-4 p-6 md:p-8"
       aria-label="Форма донату"
     >
       <div>
-        <label className="mb-2 block text-sm text-neutral-300">Сума</label>
-        <div className="flex items-center gap-3">
+        <label className="mb-1 block text-sm text-neutral-300">Сума</label>
+        <div className="flex items-center gap-2">
           <input
             type="number"
             inputMode="numeric"
@@ -137,19 +137,19 @@ export function DonationForm(_: DonationFormProps) {
             <span className="text-neutral-300">UAH</span>
           </span>
         </div>
-        <p id="amount-hint" className="mt-2 text-xs text-neutral-400">
+        <p id="amount-hint" className="mt-1 text-xs text-neutral-400">
           Сума від 10 до 29999 ₴
         </p>
         {!isAmountValid && (
-          <p className="mt-2 text-xs text-rose-400">
+          <p className="mt-1 text-xs text-rose-400">
             Сума має бути від 10 до 29999 ₴
           </p>
         )}
-        <div className="mt-3">
+        <div className="mt-2">
           <AmountPresets value={amount} onChange={setAmount} />
         </div>
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-1">
         <label className="text-sm text-neutral-300">Ім&apos;я</label>
         <input
           type="text"
@@ -161,7 +161,7 @@ export function DonationForm(_: DonationFormProps) {
           required
         />
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-1">
         <label className="text-sm text-neutral-300">Повідомлення</label>
         <textarea
           value={message}
@@ -174,7 +174,7 @@ export function DonationForm(_: DonationFormProps) {
         />
         <p className="text-xs text-neutral-500">Максимум символів – 500</p>
       </div>
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button type="button" variant="outline">
@@ -186,13 +186,13 @@ export function DonationForm(_: DonationFormProps) {
               <DialogTitle>Посилання на YouTube</DialogTitle>
             </DialogHeader>
             <input
-              className="input-base mt-4 w-full"
+              className="input-base mt-3 w-full"
               placeholder="https://youtu.be/..."
               value={youtubeInput}
               onChange={(e) => setYoutubeInput(e.target.value)}
             />
             {embed && (
-              <div className="mt-4 aspect-video">
+              <div className="mt-3 aspect-video">
                 <iframe
                   src={embed}
                   className="h-full w-full rounded-md"
@@ -203,7 +203,7 @@ export function DonationForm(_: DonationFormProps) {
                 />
               </div>
             )}
-            <DialogFooter className="mt-4 gap-2">
+            <DialogFooter className="mt-3 gap-1">
               <Button type="button" onClick={handleAttach} disabled={!embed}>
                 Прикріпити
               </Button>
@@ -227,7 +227,7 @@ export function DonationForm(_: DonationFormProps) {
         </div>
       )}
       {error && <p className="text-sm text-rose-400">{error}</p>}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         <button
           type="submit"
           className="btn-primary w-full text-lg"
