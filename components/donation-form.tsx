@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useQueryState, parseAsInteger, parseAsString } from "nuqs";
 import { AmountPresets } from "./amount-presets";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogTrigger,
@@ -108,7 +107,10 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
             <span className="text-neutral-300">UAH</span>
           </span>
         </div>
-        <p id="amount-hint" className="mt-1 text-xs text-neutral-400">
+        <p
+          id="amount-hint"
+          className="mt-1 pr-[calc(80px+2rem+0.5rem)] text-right text-xs text-neutral-400"
+        >
           Сума від 10 до 29999 ₴
         </p>
         {!isAmountValid && (
@@ -152,7 +154,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
           <DialogTrigger asChild>
             <button
               type="button"
-              className="flex w-[40%] items-center justify-between rounded-2xl bg-white/5 px-5 py-3.5 ring-1 ring-white/10 transition hover:bg-white/10 focus:ring-2 focus:ring-purple-400"
+              className="input-base flex items-center justify-between w-[40%] hover:bg-white/10"
             >
               <span className="flex items-center gap-2">
                 <svg
@@ -182,7 +184,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
               </svg>
             </button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md card">
             <DialogHeader>
               <DialogTitle>Посилання на YouTube</DialogTitle>
             </DialogHeader>
@@ -205,12 +207,21 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
               </div>
             )}
             <DialogFooter className="mt-3 gap-1">
-              <Button type="button" onClick={handleAttach} disabled={!embed}>
+              <button
+                type="button"
+                onClick={handleAttach}
+                disabled={!embed}
+                className="btn-primary px-5 py-3 rounded-2xl"
+              >
                 Прикріпити
-              </Button>
-              <Button type="button" variant="outline" onClick={handleClear}>
+              </button>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="rounded-2xl bg-white/5 px-5 py-3.5 ring-1 ring-white/10 hover:bg-white/10 focus:ring-2 focus:ring-purple-400"
+              >
                 Очистити
-              </Button>
+              </button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
