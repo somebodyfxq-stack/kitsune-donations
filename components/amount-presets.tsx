@@ -4,7 +4,7 @@ import { clsx } from "clsx";
 
 export function AmountPresets({ value, onChange }: AmountPresetsProps) {
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-4 gap-x-1 gap-y-3">
       {presets.map((preset) => (
         <button
           key={preset}
