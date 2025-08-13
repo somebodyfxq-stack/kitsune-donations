@@ -36,7 +36,9 @@ export function DonationForm(_: DonationFormProps) {
 
   const isAmountValid = amount >= 10 && amount <= 29999;
   const isValid = useMemo(() => {
-    if (!nickname.trim() || !message.trim()) return false;
+    const trimmed = nickname.trim();
+    if (!trimmed || !message.trim()) return false;
+    if (trimmed.length > 30) return false;
     if (!Number.isFinite(amount)) return false;
     if (!isAmountValid) return false;
     return true;
@@ -158,6 +160,7 @@ export function DonationForm(_: DonationFormProps) {
           placeholder="ваш нікнейм"
           className="input-base"
           aria-label="Нікнейм"
+          maxLength={30}
           required
         />
       </div>
