@@ -169,8 +169,9 @@ export function DonationForm(_: DonationFormProps) {
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
+          onInput={adjustTextareaHeight}
           placeholder="ваше повідомлення (макс. 500 символів)"
-          className="input-base min-h-[120px] resize-y"
+          className="input-base min-h-[120px] resize-none overflow-hidden"
           maxLength={500}
           aria-label="Повідомлення"
           required
@@ -262,6 +263,12 @@ export function DonationForm(_: DonationFormProps) {
       )}
     </form>
   );
+}
+
+function adjustTextareaHeight(e: React.FormEvent<HTMLTextAreaElement>) {
+  const target = e.currentTarget;
+  target.style.height = "auto";
+  target.style.height = `${target.scrollHeight}px`;
 }
 
 function extractYoutubeId(url: string): string | null {
