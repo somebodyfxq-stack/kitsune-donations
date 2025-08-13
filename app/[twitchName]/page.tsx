@@ -26,7 +26,7 @@ export default async function StreamerPage({ params }: StreamerPageProps) {
       </div>
       <div className="relative mx-auto max-w-2xl px-6 py-14">
         <header className="mb-8 text-center">
-          <h1 className="title-gradient text-4xl font-extrabold drop-shadow-sm md:text-5xl">
+          <h1 className="title-gradient text-4xl font-extrabold drop-shadow-sm md:text-4xl">
             Підтримати {twitchName}
           </h1>
           <div className="badge mt-3">Донат через Monobank 💖</div>

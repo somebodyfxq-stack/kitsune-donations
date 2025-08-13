@@ -1,7 +1,7 @@
 // next.config.mjs
 
 export const allowedDevOrigins = [
-  'https://your-ngrok-url.ngrok.app',
+  'https://a31d4d3db372.ngrok-free.app',
   'http://localhost:3000',
 ];
 
