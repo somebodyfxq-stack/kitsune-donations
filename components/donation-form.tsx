@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useQueryState, parseAsInteger, parseAsString } from "nuqs";
 import { AmountPresets } from "./amount-presets";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogTrigger,
@@ -205,12 +204,21 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
               </div>
             )}
             <DialogFooter className="mt-3 gap-1">
-              <Button type="button" onClick={handleAttach} disabled={!embed}>
+              <button
+                type="button"
+                onClick={handleAttach}
+                disabled={!embed}
+                className="btn-primary"
+              >
                 Прикріпити
-              </Button>
-              <Button type="button" variant="outline" onClick={handleClear}>
+              </button>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="btn-secondary"
+              >
                 Очистити
-              </Button>
+              </button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
