@@ -152,7 +152,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
           <DialogTrigger asChild>
             <button
               type="button"
-              className="flex w-[40%] items-center justify-between rounded-2xl bg-white/5 px-5 py-3.5 ring-1 ring-white/10 transition hover:bg-white/10 focus:ring-2 focus:ring-purple-400"
+              className="input-base flex items-center justify-between w-[40%] hover:bg-white/10"
             >
               <span className="flex items-center gap-2">
                 <svg
