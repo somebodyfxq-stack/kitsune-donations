@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+
 export function NavAuth() {
   const { data: session } = useSession();
 
