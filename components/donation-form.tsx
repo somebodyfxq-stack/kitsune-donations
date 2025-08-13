@@ -181,7 +181,11 @@ export function DonationForm(_: DonationFormProps) {
       <div className="flex gap-2">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button type="button" variant="outline">
+            <Button
+              type="button"
+              variant="default"
+              className="w-full text-lg"
+            >
               YouTube
             </Button>
           </DialogTrigger>
