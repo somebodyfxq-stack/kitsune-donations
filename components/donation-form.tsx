@@ -108,7 +108,10 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
             <span className="text-neutral-300">UAH</span>
           </span>
         </div>
-        <p id="amount-hint" className="mt-1 text-xs text-neutral-400">
+        <p
+          id="amount-hint"
+          className="mt-1 pr-[calc(80px+2rem+0.5rem)] text-right text-xs text-neutral-400"
+        >
           Сума від 10 до 29999 ₴
         </p>
         {!isAmountValid && (
