@@ -88,7 +88,8 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
     >
       <div>
         <label className="mb-1 block text-sm text-neutral-300">Сума</label>
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-[1fr_80px] gap-x-2">
+          {/* Keep column width in sync with pill min-w */}
           <input
             type="number"
             inputMode="numeric"
@@ -97,29 +98,29 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
             step={1}
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
-            className="input-base py-2.5 appearance-none text-lg [-moz-appearance:textfield] [-webkit-appearance:textfield]"
+            className="input-base col-start-1 py-2.5 appearance-none text-lg [-moz-appearance:textfield] [-webkit-appearance:textfield]"
             aria-describedby="amount-hint"
             aria-label="Сума донату"
             required
           />
-          <span className="pill flex min-w-[80px] flex-col items-center justify-center text-sm">
+          <span className="pill col-start-2 flex min-w-[80px] flex-col items-center justify-center text-sm">
             <span>₴</span>
             <span className="text-neutral-300">UAH</span>
           </span>
-        </div>
-        <p
-          id="amount-hint"
-          className="mt-1 pr-[calc(80px+2rem+0.5rem)] text-right text-xs text-neutral-400"
-        >
-          Сума від 10 до 29999 ₴
-        </p>
-        {!isAmountValid && (
-          <p className="mt-1 text-xs text-rose-400">
-            Сума має бути від 10 до 29999 ₴
+          <p
+            id="amount-hint"
+            className="col-start-1 mt-1 justify-self-end text-right text-xs text-neutral-400"
+          >
+            Сума від 10 до 29999 ₴
           </p>
-        )}
-        <div className="mt-2">
-          <AmountPresets value={amount} onChange={setAmount} />
+          {!isAmountValid && (
+            <p className="col-start-1 mt-1 text-xs text-rose-400">
+              Сума має бути від 10 до 29999 ₴
+            </p>
+          )}
+          <div className="col-start-1 mt-2">
+            <AmountPresets value={amount} onChange={setAmount} />
+          </div>
         </div>
       </div>
       <div className="grid gap-1">
