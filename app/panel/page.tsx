@@ -1,12 +1,11 @@
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth";
 import { StatusClient, StatusData } from "./status-client";
 
 export default async function AdminPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (!session || session.user?.role !== "streamer") redirect("/login");
 
   const h = headers();

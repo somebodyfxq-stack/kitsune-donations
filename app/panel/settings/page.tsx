@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth";
 import { getSetting, setSetting } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 
 export default async function SettingsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (!session || session.user?.role !== "admin") redirect("/login");
 
   const [jarId, monobankToken] = await Promise.all([
