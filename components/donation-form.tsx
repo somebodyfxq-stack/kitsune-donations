@@ -30,9 +30,7 @@ export function DonationForm(_: DonationFormProps) {
   const [youtubeInput, setYoutubeInput] = useState("");
   const [youtube, setYoutube] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
 
   const isAmountValid = amount >= 10 && amount <= 29999;
   const isValid = useMemo(() => {
@@ -43,11 +41,6 @@ export function DonationForm(_: DonationFormProps) {
     if (!isAmountValid) return false;
     return true;
   }, [nickname, amount, message, isAmountValid]);
-
-  function showToast(text: string) {
-    setToast(text);
-    setTimeout(() => setToast(""), 3000);
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,34 +60,10 @@ export function DonationForm(_: DonationFormProps) {
       const data = await res.json();
       if (!res.ok || !data?.url) throw new Error(data?.error || "Помилка");
       window.open(data.url, "_blank", "noopener,noreferrer");
-      showToast("Відкрито банку в новій вкладці");
     } catch {
       setError("Сталася помилка. Спробуйте ще раз.");
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleTest() {
-    if (testing) return;
-    setTesting(true);
-    try {
-      const body = {
-        nickname: nickname.trim() || "kitsune_fan",
-        amount: Math.round(amount) || 50,
-        message: message.trim() || "Тест повідомлення",
-      };
-      const res = await fetch("/api/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error();
-      showToast("Надіслано тест сповіщення в OBS");
-    } catch {
-      showToast("Не вдалося надіслати тест");
-    } finally {
-      setTesting(false);
     }
   }
 
@@ -235,36 +204,18 @@ export function DonationForm(_: DonationFormProps) {
         </div>
       )}
       {error && <p className="text-sm text-rose-400">{error}</p>}
-      <div className="grid gap-2 sm:grid-cols-2">
-        <button
-          type="submit"
-          className="btn-primary w-full text-lg"
-          disabled={!isValid || submitting}
-          aria-label="Надіслати донат"
-        >
-          {submitting ? "Готуємо посилання…" : "Надіслати"}
-        </button>
-        <button
-          type="button"
-          className="btn-ghost w-full text-lg"
-          onClick={handleTest}
-          aria-label="Надіслати тест до OBS"
-          disabled={testing}
-        >
-          {testing ? "Тест…" : "Тест сповіщення"}
-        </button>
-      </div>
+      <button
+        type="submit"
+        className="btn-primary w-full text-lg"
+        disabled={!isValid || submitting}
+        aria-label="Надіслати донат"
+      >
+        {submitting ? "Готуємо посилання…" : "Надіслати"}
+      </button>
       <div className="text-center text-xs text-neutral-400 break-words">
         Лінк відкриється в новій вкладці 😉<br/>
         Після оплати твій нік, сума та меседж залетять прямо на стрім! 🚀
       </div>
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
-          <div className="rounded-full bg-white/10 px-4 py-2 text-sm shadow-lg ring-1 ring-white/20">
-            {toast}
-          </div>
-        </div>
-      )}
     </form>
   );
 }
