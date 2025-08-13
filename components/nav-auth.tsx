@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export function NavAuth(_: NavAuthProps) {
+export function NavAuth() {
   const { data: session } = useSession();
 
   if (!session?.user)
@@ -27,6 +27,3 @@ export function NavAuth(_: NavAuthProps) {
     </div>
   );
 }
-
-interface NavAuthProps {}
-
