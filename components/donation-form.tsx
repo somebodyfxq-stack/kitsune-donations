@@ -150,13 +150,37 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
       <div className="flex gap-2">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button
+            <button
               type="button"
-              variant="default"
-              className="w-full text-lg"
+              className="flex w-[40%] items-center justify-between rounded-2xl bg-white/5 px-5 py-3.5 ring-1 ring-white/10 transition hover:bg-white/10 focus:ring-2 focus:ring-purple-400"
             >
-              YouTube
-            </Button>
+              <span className="flex items-center gap-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                >
+                  <path
+                    fill="#ff0000"
+                    d="M23.498 6.186a2.865 2.865 0 00-2.014-2.023C19.694 3.5 12 3.5 12 3.5s-7.694 0-9.484.663A2.865 2.865 0 00.502 6.186 29.654 29.654 0 000 12a29.657 29.657 0 00.502 5.814 2.865 2.865 0 002.014 2.023C4.306 20.5 12 20.5 12 20.5s7.694 0 9.484-.663a2.865 2.865 0 002.014-2.023A29.657 29.657 0 0024 12a29.654 29.654 0 00-.502-5.814z"
+                  />
+                  <path fill="#fff" d="M9.545 15.568l6.545-3.568-6.545-3.568z" />
+                </svg>
+                <span>Youtube відео</span>
+              </span>
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-5 w-5"
+              >
+                <path
+                  d="M12 5v14M5 12h14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
