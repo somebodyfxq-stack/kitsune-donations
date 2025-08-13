@@ -8,7 +8,7 @@ body {
   @apply bg-neutral-950 text-neutral-100 antialiased;
 }
 .title-gradient {
-  @apply bg-gradient-to-r from-white via-fuchsia-200 to-purple-300 bg-clip-text text-transparent text-neutral-100 [background-size:100%_100%];
+  @apply bg-gradient-to-r from-white via-fuchsia-200 to-purple-300 bg-clip-text text-transparent [background-size:100%_100%];
 }
 .card {
   @apply rounded-3xl bg-white/5 shadow-2xl shadow-purple-900/20 ring-1 ring-white/10 backdrop-blur-xl;
