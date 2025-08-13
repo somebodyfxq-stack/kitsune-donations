@@ -1,7 +1,6 @@
 import "./globals.css";
 import { Suspense } from "react";
-import { SessionProvider } from "next-auth/react";
-import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { Providers } from "@/components/providers";
 import { NavAuth } from "@/components/nav-auth";
 import { getAuthSession } from "@/lib/auth";
 
@@ -14,14 +13,14 @@ export default async function RootLayout({ children }: RootLayoutProps) {
         <meta name="referrer" content="no-referrer" />
       </head>
       <body>
-        <SessionProvider session={session}>
-          <NuqsAdapter>{children}</NuqsAdapter>
+        <Providers session={session}>
+          {children}
           <div className="fixed right-4 top-4">
             <Suspense fallback={null}>
               <NavAuth />
             </Suspense>
           </div>
-        </SessionProvider>
+        </Providers>
       </body>
     </html>
   );
