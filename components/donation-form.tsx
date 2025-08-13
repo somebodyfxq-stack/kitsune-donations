@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useQueryState, parseAsInteger, parseAsString } from "nuqs";
-import { useSession } from "next-auth/react";
 import { AmountPresets } from "./amount-presets";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,10 +13,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-export function DonationForm(_: DonationFormProps) {
+export function DonationForm({ initialName = "" }: DonationFormProps) {
   const [nickname, setNickname] = useQueryState(
     "nickname",
-    parseAsString.withDefault(""),
+    parseAsString.withDefault(initialName),
   );
   const [amount, setAmount] = useQueryState(
     "amount",
@@ -32,16 +31,6 @@ export function DonationForm(_: DonationFormProps) {
   const [youtube, setYoutube] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const { data: session } = useSession();
-  const filledRef = useRef(false);
-
-  useEffect(() => {
-    if (filledRef.current) return;
-    if (session?.user?.name && !nickname) {
-      setNickname(session.user.name);
-      filledRef.current = true;
-    }
-  }, [session?.user?.name, nickname, setNickname]);
 
   const isAmountValid = amount >= 10 && amount <= 29999;
   const isValid = useMemo(() => {
@@ -251,4 +240,6 @@ function extractYoutubeId(url: string): string | null {
   }
 }
 
-interface DonationFormProps {}
+interface DonationFormProps {
+  initialName?: string;
+}

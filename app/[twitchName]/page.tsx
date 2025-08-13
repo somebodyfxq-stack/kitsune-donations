@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { DonationForm } from "@/components/donation-form";
+import { getAuthSession } from "@/lib/auth";
 
 interface StreamerPageProps {
   params: { twitchName: string };
@@ -15,6 +16,7 @@ export default async function StreamerPage({ params }: StreamerPageProps) {
     select: { id: true },
   });
   if (!streamer) notFound();
+  const session = await getAuthSession();
 
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -30,7 +32,7 @@ export default async function StreamerPage({ params }: StreamerPageProps) {
           <div className="badge mt-3">Донат через Monobank 💖</div>
         </header>
         <Suspense fallback={<div className="card p-6 md:p-8">Завантаження…</div>}>
-          <DonationForm />
+          <DonationForm initialName={session?.user?.name} />
         </Suspense>
       </div>
     </main>
