@@ -53,8 +53,9 @@ export async function appendDonationEvent(
   });
 }
 
-export async function listDonationEvents(): Promise<DonationEvent[]> {
-  return prisma.donationEvent.findMany({ orderBy: { createdAt: "asc" } });
+export async function listDonationEvents(streamerId: string): Promise<DonationEvent[]> {
+  if (!streamerId) return [];
+  return prisma.donationEvent.findMany({ where: { streamerId }, orderBy: { createdAt: "asc" } });
 }
 
 export async function getSetting<K extends SettingKey>(
