@@ -24,7 +24,9 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    await upsertMonobankSettings(session.user.id, { token });
+    // Persist the token for this user only.  Using upsertMonobankSettings
+    // ensures that each streamer has their own Monobank configuration.
+    await upsertMonobankSettings(session.user.id as any, { token } as any);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("/api/monobank/save-token error", err);

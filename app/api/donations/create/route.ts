@@ -1,48 +1,106 @@
-import { NextRequest, NextResponse } from "next/server";
-import { appendIntent, getMonobankSettings } from "@/lib/store";
+import { NextResponse } from "next/server";
+import { getMonobankSettings, appendIntent } from "@/lib/store";
 import {
   buildMonoUrl,
-  clamp,
   generateIdentifier,
   sanitizeMessage,
 } from "@/lib/utils";
 
+// API endpoint to create a Monobank donation URL.
+// It accepts query parameters for nickname, amount, message and optional
+// youtube link.  It validates the inputs, stores a donation intent in the
+// database and returns a URL to the Monobank jar for payment.
+
 export const runtime = "nodejs";
 
-export async function GET(req: NextRequest) {
-  const sp = new URL(req.url).searchParams;
-  const nickname = (sp.get("nickname") || "").trim().slice(0, 64);
-  const message = sanitizeMessage(sp.get("message") || "");
-  const amountParam = Number(sp.get("amount") || "0");
-  const jarId = (
-    await getMonobankSettings(process.env.MONOBANK_USER_ID as string)
-  )?.jarId;
-  if (!jarId)
-    return NextResponse.json({ error: "Missing jarId" }, { status: 500 });
-  const rounded = Math.round(amountParam);
-  if (!nickname || !message || !rounded)
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-  if (rounded < 10 || rounded > 29999)
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const nickname = (url.searchParams.get("nickname") || "").trim();
+    const amountStr = url.searchParams.get("amount") || "";
+    const messageRaw = url.searchParams.get("message") || "";
+    const youtube = url.searchParams.get("youtube") || undefined;
+    const amount = Number(amountStr);
+
+    // Basic validation
+    if (!nickname || nickname.length > 30) {
+      return NextResponse.json(
+        { error: "Некоректний нікнейм" },
+        { status: 400 },
+      );
+    }
+    if (!messageRaw.trim()) {
+      return NextResponse.json(
+        { error: "Повідомлення є обов'язковим" },
+        { status: 400 },
+      );
+    }
+    if (!Number.isFinite(amount) || amount < 10 || amount > 29999) {
+      return NextResponse.json(
+        { error: "Сума має бути від 10 до 29999" },
+        { status: 400 },
+      );
+    }
+    // Sanitize message and generate a unique identifier
+    const safeMessage = sanitizeMessage(messageRaw);
+    const identifier = generateIdentifier();
+    // Build the Monobank comment (message visible in payment)
+    const comment = `${safeMessage} (${identifier})`;
+    // Determine which streamer this donation belongs to based on the
+    // request's Referer header.  The donation page lives at /{slug}, e.g.
+    // /somebodyqq, so we can extract the slug from the pathname.  This slug
+    // will be used as the userId when looking up the Monobank settings in
+    // the database.  If no referer is present or the slug is empty, we
+    // cannot determine the recipient of the donation.
+    const referer = req.headers.get("referer") || "";
+    let slug = "";
+    try {
+      const refererUrl = new URL(referer);
+      // split the pathname and remove empty segments; take the first segment
+      const parts = refererUrl.pathname.split("/").filter(Boolean);
+      slug = parts[0] || "";
+    } catch {
+      slug = "";
+    }
+    if (!slug) {
+      return NextResponse.json(
+        { error: "Не вдалося визначити одержувача донату" },
+        { status: 400 },
+      );
+    }
+    // Retrieve Monobank settings for the given streamer.  These settings
+    // contain the jarId to which donations should be sent.  If the jar
+    // hasn't been configured yet, return an error.
+    const settings = await getMonobankSettings(slug as any);
+    const jarId = settings?.jarId;
+    if (!jarId) {
+      return NextResponse.json(
+        { error: "Банка Monobank не налаштована" },
+        { status: 500 },
+      );
+    }
+    // Construct the payment URL.  The Monobank URL expects the amount in
+    // whole hryvnias and a URL‑encoded comment.
+    const paymentUrl = buildMonoUrl(jarId, amount, comment);
+    // Record the donation intent in the database so that incoming webhook
+    // events can be matched to this intent later.  Note: the intent is
+    // stored with the original message (not including the identifier) and
+    // the amount as provided.
+    await appendIntent({
+      identifier,
+      nickname,
+      message: safeMessage,
+      amount,
+      createdAt: new Date().toISOString(),
+    });
+    // Respond with the payment URL.  The client will open this URL in a
+    // new tab.  Include the identifier for potential debugging.
+    return NextResponse.json({ url: paymentUrl, identifier });
+  } catch (err) {
+    console.error("Failed to create donation", err);
     return NextResponse.json(
-      { error: "Amount must be between 10 and 29999" },
-      { status: 400 },
+      { error: "Внутрішня помилка сервера" },
+      { status: 500 },
     );
-  const amount = clamp(rounded, 10, 29999);
-  const identifier = generateIdentifier();
-  await appendIntent({
-    identifier,
-    nickname,
-    message,
-    amount,
-    createdAt: new Date().toISOString(),
-  });
-  const url = buildMonoUrl(
-    jarId,
-    amount,
-    `${message} (${identifier.toLowerCase()})`,
-  );
-  return NextResponse.json(
-    { ok: true, url, identifier },
-    { headers: { "Referrer-Policy": "no-referrer" } },
-  );
+  }
 }
