@@ -9,7 +9,9 @@ interface SettingMap {}
 
 type SettingKey = keyof SettingMap;
 
-export async function appendIntent(intent: DonationIntent): Promise<void> {
+export async function appendIntent(
+  intent: Omit<DonationIntent, "id">,
+): Promise<void> {
   await prisma.donationIntent.create({
     data: {
       ...intent,
@@ -21,9 +23,10 @@ export async function appendIntent(intent: DonationIntent): Promise<void> {
 
 export async function findIntentByIdentifier(
   id: string,
+  streamerId: string,
 ): Promise<DonationIntent | undefined> {
-  const intent = await prisma.donationIntent.findUnique({
-    where: { identifier: id.toLowerCase() },
+  const intent = await prisma.donationIntent.findFirst({
+    where: { identifier: id.toLowerCase(), streamerId },
   });
   return intent ?? undefined;
 }

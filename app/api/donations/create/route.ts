@@ -87,6 +87,7 @@ export async function GET(req: Request) {
     // stored with the original message (not including the identifier) and
     // the amount as provided.
     await appendIntent({
+      streamerId: slug,
       identifier,
       nickname,
       message: safeMessage,

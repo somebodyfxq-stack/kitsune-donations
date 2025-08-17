@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
   const amount = clamp(rounded, 10, 29999); // UAH
   const identifier = generateIdentifier();
   await appendIntent({
+    streamerId: process.env.MONOBANK_USER_ID as string,
     identifier,
     nickname,
     message,
