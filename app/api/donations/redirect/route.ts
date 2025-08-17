@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { appendIntent, getSetting } from "@/lib/store";
+import { appendIntent, getMonobankSettings } from "@/lib/store";
 import {
   buildMonoUrl,
   clamp,
@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
   const nickname = (searchParams.get("nickname") || "").trim().slice(0, 64);
   const message = sanitizeMessage(searchParams.get("message") || "");
   const amountParam = Number(searchParams.get("amount") || "0");
-  const jarId = await getSetting("jarId");
+  const jarId = (
+    await getMonobankSettings(process.env.MONOBANK_USER_ID as string)
+  )?.jarId;
   if (!jarId) {
     return NextResponse.json(
       { error: "Server is not configured. Missing jarId." },

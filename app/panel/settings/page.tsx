@@ -1,25 +1,21 @@
 import { redirect } from "next/navigation";
 import { getAuthSession } from "@/lib/auth";
-import { getSetting, setSetting } from "@/lib/store";
+import { getMonobankSettings, upsertMonobankSettings } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 
 export default async function SettingsPage() {
   const session = await getAuthSession();
   if (!session || session.user?.role !== "admin") redirect("/login");
 
-  const [jarId, monobankToken] = await Promise.all([
-    getSetting("jarId"),
-    getSetting("monobankToken"),
-  ]);
+  const settings = await getMonobankSettings(session.user.id);
+  const jarId = settings?.jarId ?? null;
+  const monobankToken = settings?.token ?? null;
 
   async function save(formData: FormData) {
     "use server";
     const jar = formData.get("jarId")?.toString().trim() ?? "";
     const token = formData.get("monobankToken")?.toString().trim() ?? "";
-    await Promise.all([
-      setSetting("jarId", jar),
-      setSetting("monobankToken", token),
-    ]);
+    await upsertMonobankSettings(session.user.id, { jarId: jar, token });
     redirect("/panel/settings");
   }
 

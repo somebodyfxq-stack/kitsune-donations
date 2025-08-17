@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/auth";
-import { setSetting } from "@/lib/store";
+import { upsertMonobankSettings } from "@/lib/store";
 
 // Persist the personal Monobank API token for the authenticated streamer.
 // The client should call this after validating that the token is correct.
@@ -24,10 +24,7 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    // Store the token in the global settings.  This implementation keeps a
-    // single token for the entire deployment; if you later support multiple
-    // streamers concurrently you may want to persist the token per user.
-    await setSetting("monobankToken" as any, token as any);
+    await upsertMonobankSettings(session.user.id, { token });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("/api/monobank/save-token error", err);

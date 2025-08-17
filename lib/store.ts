@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/db";
-import type { DonationIntent, DonationEvent, Setting } from "@prisma/client";
-
-interface SettingMap {
-  jarId: string;
-  monobankToken: string;
-  monobankWebhookUrl: string;
-}
+import type {
+  DonationIntent,
+  DonationEvent,
+  MonobankSettings,
+  Setting,
+} from "@prisma/client";
+interface SettingMap {}
 
 type SettingKey = keyof SettingMap;
 
@@ -57,5 +57,23 @@ export async function setSetting<K extends SettingKey>(
     where: { key },
     update: { value: String(value) },
     create: { key, value: String(value) },
+  });
+}
+
+export function getMonobankSettings(
+  userId: string,
+): Promise<MonobankSettings | null> {
+  if (!userId) return Promise.resolve(null);
+  return prisma.monobankSettings.findUnique({ where: { userId } });
+}
+
+export function upsertMonobankSettings(
+  userId: string,
+  data: Partial<Omit<MonobankSettings, "userId">>,
+): Promise<MonobankSettings> {
+  return prisma.monobankSettings.upsert({
+    where: { userId },
+    update: data,
+    create: { userId, ...data },
   });
 }
