@@ -24,18 +24,21 @@ export async function GET(req: Request) {
 
     // Basic validation
     if (!nickname || nickname.length > 30) {
+      console.error("Invalid nickname", { nicknameLength: nickname.length });
       return NextResponse.json(
         { error: "Некоректний нікнейм" },
         { status: 400 },
       );
     }
     if (!messageRaw.trim()) {
+      console.error("Empty message");
       return NextResponse.json(
         { error: "Повідомлення є обов'язковим" },
         { status: 400 },
       );
     }
     if (!Number.isFinite(amount) || amount < 10 || amount > 29999) {
+      console.error("Invalid amount", { amount });
       return NextResponse.json(
         { error: "Сума має бути від 10 до 29999" },
         { status: 400 },
@@ -64,7 +67,13 @@ export async function GET(req: Request) {
     }
     if (!slug) slug = (url.searchParams.get("streamer") || "").trim();
     if (!slug) {
-      console.error("Missing streamer for donation", { referer, url: req.url });
+      const safeUrl = new URL(req.url);
+      safeUrl.searchParams.delete("message");
+      safeUrl.searchParams.delete("nickname");
+      console.error("Missing streamer for donation", {
+        referer,
+        url: safeUrl.toString(),
+      });
       return NextResponse.json(
         { error: "Не вдалося визначити одержувача донату" },
         { status: 400 },
@@ -72,6 +81,7 @@ export async function GET(req: Request) {
     }
     const streamerId = await findStreamerIdBySlug(slug);
     if (!streamerId) {
+      console.error("Streamer not found", { slug });
       return NextResponse.json(
         { error: "Одержувача не знайдено" },
         { status: 404 },
@@ -83,6 +93,7 @@ export async function GET(req: Request) {
     const settings = await getMonobankSettings(streamerId as any);
     const jarId = settings?.jarId;
     if (!jarId) {
+      console.error("Monobank jar not configured", { streamerId });
       return NextResponse.json(
         { error: "Банка Monobank не налаштована" },
         { status: 500 },
