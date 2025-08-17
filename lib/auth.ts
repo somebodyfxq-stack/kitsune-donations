@@ -1,10 +1,14 @@
 import { getServerSession } from "next-auth/next";
 import Credentials from "next-auth/providers/credentials";
 import Twitch from "next-auth/providers/twitch";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import type { Account, NextAuthOptions, Session, User } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 
+import { prisma } from "@/lib/db";
+
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
   providers: [
     Twitch({
       clientId: process.env.TWITCH_CLIENT_ID ?? "",
@@ -40,15 +44,13 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user }: { token: JWT; user?: User }) {
-      if (user?.id) token.id = user.id;
       if (user?.role) token.role = user.role;
       return token;
     },
     async session({ session, token }: { session: Session; token: JWT }) {
-      if (!token.id) return null;
+      if (!token.sub) return null;
       if (session.user) {
-        (session.user as any).id = token.sub;
-        session.user.id = token.id as string;
+        session.user.id = token.sub;
         if (token.role) session.user.role = token.role as string;
       }
       return session;
