@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMonobankSettings, appendIntent } from "@/lib/store";
-import {
-  buildMonoUrl,
-  generateIdentifier,
-  sanitizeMessage,
-} from "@/lib/utils";
+import { buildMonoUrl, generateIdentifier, sanitizeMessage } from "@/lib/utils";
 
 // API endpoint to create a Monobank donation URL.
 // It accepts query parameters for nickname, amount, message and optional
@@ -62,7 +58,9 @@ export async function GET(req: Request) {
     } catch {
       slug = "";
     }
+    if (!slug) slug = (url.searchParams.get("streamer") || "").trim();
     if (!slug) {
+      console.error("Missing streamer for donation", { referer, url: req.url });
       return NextResponse.json(
         { error: "Не вдалося визначити одержувача донату" },
         { status: 400 },
