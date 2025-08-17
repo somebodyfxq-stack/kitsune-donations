@@ -78,8 +78,9 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }: { session: Session; token: JWT }) {
+      if (!token.id) return null;
       if (session.user) {
-        if (token.id) session.user.id = token.id as string;
+        session.user.id = token.id as string;
         if (token.role) session.user.role = token.role as string;
       }
       return session;
@@ -87,6 +88,6 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-export function getAuthSession() {
+export async function getAuthSession() {
   return getServerSession(authOptions);
 }
