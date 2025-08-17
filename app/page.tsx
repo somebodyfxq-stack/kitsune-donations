@@ -12,7 +12,7 @@ export default async function HomePage() {
       </div>
       <div className="relative mx-auto max-w-2xl px-6 py-14">
         <div className="card flex flex-col gap-4 p-6 md:p-8">
-          {session ? (
+          {session?.user ? (
             <Link href="/panel" className="btn-primary text-center">
               Кабінет
             </Link>
@@ -21,7 +21,7 @@ export default async function HomePage() {
               <Link href="/login" className="btn-primary text-center">
                 Створити сторінку
               </Link>
-              <Link href="/panel" className="btn-ghost text-center">
+              <Link href="/login" className="btn-ghost text-center">
                 Увійти
               </Link>
             </>
