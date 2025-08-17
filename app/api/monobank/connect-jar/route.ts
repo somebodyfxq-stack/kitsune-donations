@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/auth";
-import { setSetting } from "@/lib/store";
+import {
+  getMonobankSettings,
+  upsertMonobankSettings,
+} from "@/lib/store";
 import { configureWebhook } from "@/lib/monobank-webhook";
 
 // Persist the chosen Monobank jar and configure the webhook.  This route
@@ -27,20 +30,15 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    // Persist jar identifier.  As with the token, this is stored globally
-    // for now.  A more advanced implementation could key off of
-    // session.user.id to support multiple streamers.
-    await setSetting("jarId" as any, jarId as any);
     // Determine protocol and host from the incoming request.  When
     // deploying behind a proxy these headers should be set correctly.
     const proto = req.headers.get("x-forwarded-proto") ?? "http";
     const host = req.headers.get("host") ?? "localhost";
     const webhookUrl = `${proto}://${host}/api/monobank/webhook`;
-    await setSetting("monobankWebhookUrl" as any, webhookUrl as any);
-    // Try to configure the webhook.  Ignore failures since the status
-    // endpoint will keep retrying.
+    await upsertMonobankSettings(session.user.id, { jarId, webhookUrl });
+    const token = (await getMonobankSettings(session.user.id))?.token;
     try {
-      await configureWebhook(webhookUrl);
+      await configureWebhook(webhookUrl, token);
     } catch (err) {
       console.error("configureWebhook failed", err);
     }

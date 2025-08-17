@@ -45,6 +45,7 @@ model User {
   role          String    @default("streamer")
   accounts      Account[]
   sessions      Session[]
+  monobankSettings MonobankSettings?
 }
 
 model Account {
@@ -71,4 +72,12 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MonobankSettings {
+  userId     String @id
+  token      String?
+  jarId      String?
+  webhookUrl String?
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
