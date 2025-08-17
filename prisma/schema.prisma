@@ -8,29 +8,29 @@ generator client {
 }
 
 model DonationIntent {
-  id         Int      @id @default(autoincrement())
-  identifier String   @unique
+  id         Int             @id @default(autoincrement())
+  identifier String          @unique
   nickname   String
   message    String
   amount     Int
-  createdAt  DateTime @default(now())
+  createdAt  DateTime        @default(now())
   streamerId String
-  streamer   User     @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  streamer   User            @relation(fields: [streamerId], references: [id], onDelete: Cascade)
   events     DonationEvent[] @relation("IntentEvents")
 }
 
 model DonationEvent {
-  id          Int      @id @default(autoincrement())
+  id          Int             @id @default(autoincrement())
   identifier  String
   nickname    String
   message     String
   amount      Int
   monoComment String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime        @default(now())
   intent      DonationIntent? @relation("IntentEvents", fields: [identifier], references: [identifier])
 
-  @@index([identifier])
   @@unique([identifier, createdAt])
+  @@index([identifier])
 }
 
 model Setting {
@@ -39,16 +39,16 @@ model Setting {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?   @unique
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  role          String    @default("streamer")
-  accounts      Account[]
-  sessions      Session[]
+  id               String            @id @default(cuid())
+  name             String?           @unique
+  email            String?           @unique
+  emailVerified    DateTime?
+  image            String?
+  role             String            @default("streamer")
+  accounts         Account[]
+  sessions         Session[]
   monobankSettings MonobankSettings?
-  donationIntents DonationIntent[]
+  donationIntents  DonationIntent[]
 }
 
 model Account {
@@ -78,9 +78,10 @@ model Session {
 }
 
 model MonobankSettings {
-  userId     String @id
+  userId     String  @id
   token      String?
   jarId      String?
+  webhookId  String? @unique
   webhookUrl String?
-  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
