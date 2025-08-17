@@ -88,7 +88,11 @@ export async function POST(req: NextRequest) {
     });
 
   const id = m[1];
-  const intent = await findIntentByIdentifier(id);
+  const streamerId =
+    req.nextUrl.searchParams.get("streamerId") ||
+    (process.env.MONOBANK_USER_ID as string) ||
+    "";
+  const intent = await findIntentByIdentifier(id, streamerId);
   if (!intent)
     return NextResponse.json({
       ok: true,

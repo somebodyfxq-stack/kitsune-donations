@@ -14,6 +14,11 @@ async function buildStore() {
   });
   const store = await import("../lib/store.ts");
   const db = await import("../lib/db.ts");
+  await db.prisma.user.upsert({
+    where: { id: "streamer" },
+    update: {},
+    create: { id: "streamer" },
+  });
   return { dir, prisma: db.prisma, ...store };
 }
 
@@ -25,6 +30,7 @@ function buildIntent(i: number) {
     message: "",
     amount: i,
     createdAt: now,
+    streamerId: "streamer",
   };
 }
 
@@ -49,8 +55,10 @@ test("appendIntent handles concurrent writes", async () => {
 });
 
 test("appendDonationEvent handles concurrent writes", async () => {
-  const { appendDonationEvent, listDonationEvents } = await buildStore();
-  const events = Array.from({ length: 20 }, (_, i) => buildEvent(i));
+  const { appendDonationEvent, listDonationEvents, appendIntent } =
+    await buildStore();
+  const events = Array.from({ length: 20 }, (_, i) => buildEvent(i + 100));
+  await Promise.all(events.map((_, i) => appendIntent(buildIntent(i + 100))));
   await Promise.all(events.map(appendDonationEvent));
   const saved = await listDonationEvents();
   assert.strictEqual(saved.length, events.length);

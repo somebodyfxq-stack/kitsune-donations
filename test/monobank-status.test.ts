@@ -14,6 +14,11 @@ async function setup(events: DonationEvent[]) {
     stdio: "ignore",
   });
   const { prisma } = await import("../lib/db.ts");
+  await prisma.user.upsert({
+    where: { id: "streamer" },
+    update: {},
+    create: { id: "streamer" },
+  });
   if (events.length) {
     await prisma.donationIntent.createMany({
       data: events.map((e) => ({
@@ -22,6 +27,7 @@ async function setup(events: DonationEvent[]) {
         message: e.message,
         amount: e.amount,
         createdAt: new Date(e.createdAt),
+        streamerId: "streamer",
       })),
     });
     await prisma.donationEvent.createMany({

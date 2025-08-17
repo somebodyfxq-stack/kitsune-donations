@@ -14,6 +14,8 @@ model DonationIntent {
   message    String
   amount     Int
   createdAt  DateTime @default(now())
+  streamerId String
+  streamer   User     @relation(fields: [streamerId], references: [id], onDelete: Cascade)
   events     DonationEvent[] @relation("IntentEvents")
 }
 
@@ -46,6 +48,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   monobankSettings MonobankSettings?
+  donationIntents DonationIntent[]
 }
 
 model Account {
