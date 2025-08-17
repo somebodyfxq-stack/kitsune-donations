@@ -103,7 +103,8 @@ export async function POST(
     });
 
   const id = m[1];
-  const intent = await findIntentByIdentifier(id, settings.userId);
+  const streamerId = settings.userId;
+  const intent = await findIntentByIdentifier(id, streamerId);
   if (!intent)
     return NextResponse.json({
       ok: true,

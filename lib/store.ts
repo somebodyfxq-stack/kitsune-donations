@@ -32,11 +32,11 @@ export async function appendIntent(
 }
 
 export async function findIntentByIdentifier(
-  id: string,
+  identifier: string,
   streamerId: string,
 ): Promise<DonationIntent | undefined> {
   const intent = await prisma.donationIntent.findFirst({
-    where: { identifier: id.toLowerCase(), streamerId },
+    where: { identifier: identifier.toLowerCase(), streamerId },
   });
   return intent ?? undefined;
 }
