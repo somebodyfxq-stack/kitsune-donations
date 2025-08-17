@@ -9,11 +9,11 @@ interface SettingMap {}
 
 type SettingKey = keyof SettingMap;
 
-export async function findStreamerIdBySlug(
+export async function findUserIdBySlug(
   slug: string,
 ): Promise<string | undefined> {
-  const user = await prisma.user.findUnique({
-    where: { name: slug.toLowerCase() },
+  const user = await prisma.user.findFirst({
+    where: { name: slug.toLowerCase(), role: "streamer" },
     select: { id: true },
   });
   return user?.id;
