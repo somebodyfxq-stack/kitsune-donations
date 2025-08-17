@@ -70,6 +70,13 @@ export function getMonobankSettings(
   return prisma.monobankSettings.findUnique({ where: { userId } });
 }
 
+export function getMonobankSettingsByWebhook(
+  webhookId: string,
+): Promise<MonobankSettings | null> {
+  if (!webhookId) return Promise.resolve(null);
+  return prisma.monobankSettings.findUnique({ where: { webhookId } });
+}
+
 export function upsertMonobankSettings(
   userId: string,
   data: Partial<Omit<MonobankSettings, "userId">>,

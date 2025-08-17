@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { appendDonationEvent, findIntentByIdentifier } from "@/lib/store";
+import {
+  appendDonationEvent,
+  findIntentByIdentifier,
+  getMonobankSettingsByWebhook,
+} from "@/lib/store";
 import { broadcastDonation } from "@/lib/sse";
 
 export const runtime = "nodejs";
@@ -23,7 +27,18 @@ export interface MonobankPayload {
   amount?: number;
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { webhookId: string } },
+) {
+  const settings = await getMonobankSettingsByWebhook(params.webhookId);
+  if (!settings)
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: "Webhook not recognized",
+    });
+
   const secret = process.env.MONOBANK_WEBHOOK_SECRET;
   const raw = await req.text();
   if (secret) {
@@ -88,11 +103,7 @@ export async function POST(req: NextRequest) {
     });
 
   const id = m[1];
-  const streamerId =
-    req.nextUrl.searchParams.get("streamerId") ||
-    (process.env.MONOBANK_USER_ID as string) ||
-    "";
-  const intent = await findIntentByIdentifier(id, streamerId);
+  const intent = await findIntentByIdentifier(id, settings.userId);
   if (!intent)
     return NextResponse.json({
       ok: true,
