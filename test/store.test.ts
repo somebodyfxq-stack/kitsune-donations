@@ -63,3 +63,13 @@ test("appendDonationEvent handles concurrent writes", async () => {
   const saved = await listDonationEvents();
   assert.strictEqual(saved.length, events.length);
 });
+
+test("findIntentByIdentifier filters by streamerId", async () => {
+  const { appendIntent, findIntentByIdentifier } = await buildStore();
+  const intent = buildIntent(42);
+  await appendIntent(intent);
+  const found = await findIntentByIdentifier(intent.identifier, intent.streamerId);
+  assert.ok(found);
+  const missing = await findIntentByIdentifier(intent.identifier, "other");
+  assert.strictEqual(missing, undefined);
+});
