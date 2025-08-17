@@ -7,6 +7,18 @@ import { upsertMonobankSettings } from "@/lib/store";
 
 export const runtime = "nodejs";
 
+interface SaveTokenBody {
+  token: string;
+}
+
+function isSaveTokenBody(data: unknown): data is SaveTokenBody {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    typeof (data as Record<string, unknown>).token === "string"
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const session = await getAuthSession();
@@ -17,8 +29,7 @@ export async function POST(req: Request) {
       );
     }
     const body = await req.json();
-    const token: unknown = body?.token;
-    if (!token || typeof token !== "string") {
+    if (!isSaveTokenBody(body)) {
       return NextResponse.json(
         { error: "Токен обов'язковий." },
         { status: 400 },
@@ -26,7 +37,7 @@ export async function POST(req: Request) {
     }
     // Persist the token for this user only.  Using upsertMonobankSettings
     // ensures that each streamer has their own Monobank configuration.
-    await upsertMonobankSettings(session.user.id as any, { token } as any);
+    await upsertMonobankSettings(session.user!.id, { token: body.token });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("/api/monobank/save-token error", err);
