@@ -56,5 +56,5 @@ export function buildMonoUrl(
   message: string,
 ): string {
   const encoded = encodeURIComponent(message);
-  return `https://send.monobank.ua/jar/${jarId}?a=${Math.round(amount)}&t=${encoded}`;
+  return `https://send.monobank.ua/${jarId}?a=${Math.round(amount)}&t=${encoded}`;
 }
