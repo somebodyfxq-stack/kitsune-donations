@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert";
 import { NextRequest } from "next/server";
-import { GET, POST } from "@/app/api/monobank/webhook/route.ts";
+import { GET, POST } from "@/app/api/monobank/webhook/[webhookId]/route.ts";
 
-test("GET /api/monobank/webhook returns 200", async function () {
+test("GET /api/monobank/webhook/[webhookId] returns 200", async function () {
   const res = await GET();
   assert.strictEqual(res.status, 200);
   const body = await res.json();

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { getAuthSession } from "@/lib/auth";
 import { upsertMonobankSettings } from "@/lib/store";
 import { configureWebhook } from "@/lib/monobank-webhook";
@@ -29,22 +30,24 @@ export async function POST(req: Request) {
     }
     // Persist jar identifier for this user.  Store per‑user Monobank
     // configuration so that each streamer can have their own jar.  We
-    // persist both the jarId and the webhook URL below using the helper
-    // upsertMonobankSettings.
+    // persist the jarId, a random webhookId, and the webhook URL below using
+    // the helper upsertMonobankSettings.
     // Determine protocol and host from the incoming request.  When
     // deploying behind a proxy these headers should be set correctly.
     const proto = req.headers.get("x-forwarded-proto") ?? "http";
     const host = req.headers.get("host") ?? "localhost";
-    const webhookUrl = `${proto}://${host}/api/monobank/webhook`;
+    const webhookId = crypto.randomUUID();
+    const webhookUrl = `${proto}://${host}/api/monobank/webhook/${webhookId}`;
     // Update the Monobank settings for this user including jar and webhook.
     await upsertMonobankSettings(session.user.id as any, {
       jarId,
+      webhookId,
       webhookUrl,
     } as any);
     // Try to configure the webhook.  Ignore failures since the status
     // endpoint will keep retrying.
     try {
-      await configureWebhook(webhookUrl);
+      await configureWebhook(webhookUrl, undefined, session.user.id as any);
     } catch (err) {
       console.error("configureWebhook failed", err);
     }
