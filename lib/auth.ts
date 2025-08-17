@@ -3,13 +3,8 @@ import Credentials from "next-auth/providers/credentials";
 import Twitch from "next-auth/providers/twitch";
 import type { Account, NextAuthOptions, Session, User } from "next-auth";
 import type { JWT } from "next-auth/jwt";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "@/lib/db";
-
-const isProduction = process.env.NODE_ENV === "production";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     Twitch({
       clientId: process.env.TWITCH_CLIENT_ID ?? "",
@@ -37,34 +32,6 @@ export const authOptions: NextAuthOptions = {
   trustHost: true,
   session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,
-  cookies: {
-    sessionToken: {
-      name: `next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: isProduction,
-      },
-    },
-    callbackUrl: {
-      name: `next-auth.callback-url`,
-      options: {
-        sameSite: "lax",
-        path: "/",
-        secure: isProduction,
-      },
-    },
-    csrfToken: {
-      name: `next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: isProduction,
-      },
-    },
-  },
   pages: { signIn: "/login" },
   callbacks: {
     async signIn({ user, account }: { user: User; account: Account | null }) {
@@ -80,10 +47,14 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }: { session: Session; token: JWT }) {
       if (!token.id) return null;
       if (session.user) {
+        (session.user as any).id = token.sub;
         session.user.id = token.id as string;
         if (token.role) session.user.role = token.role as string;
       }
       return session;
+    },
+    async redirect() {
+      return "/panel";
     },
   },
 };
