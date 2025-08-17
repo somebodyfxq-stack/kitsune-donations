@@ -41,7 +41,9 @@ export async function findIntentByIdentifier(
   return intent ?? undefined;
 }
 
-export async function appendDonationEvent(event: DonationEvent): Promise<void> {
+export async function appendDonationEvent(
+  event: Omit<DonationEvent, "id">,
+): Promise<void> {
   await prisma.donationEvent.create({
     data: {
       ...event,

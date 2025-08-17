@@ -43,6 +43,7 @@ function buildEvent(i: number) {
     amount: i,
     monoComment: "",
     createdAt: now,
+    streamerId: "streamer",
   };
 }
 

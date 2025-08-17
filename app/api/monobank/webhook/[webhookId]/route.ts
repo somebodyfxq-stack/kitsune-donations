@@ -118,6 +118,7 @@ export async function POST(
     message: intent.message,
     amount,
     monoComment: comment,
+    streamerId,
     createdAt: new Date().toISOString(),
   };
 

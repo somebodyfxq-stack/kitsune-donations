@@ -6,7 +6,7 @@ import os from "node:os";
 import { execSync } from "node:child_process";
 import type { DonationEvent } from "@prisma/client";
 
-async function setup(events: DonationEvent[]) {
+async function setup(events: Array<Omit<DonationEvent, "id">>) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "status-test-"));
   process.env.DATABASE_URL = `file:${path.join(dir, "test.db")}`;
   delete (globalThis as any).prisma;
@@ -51,7 +51,7 @@ test("reports inactive when no events", async () => {
 });
 
 test("returns latest event", async () => {
-  const events: DonationEvent[] = [
+  const events: Array<Omit<DonationEvent, "id">> = [
     {
       identifier: "AAA-111",
       nickname: "x",
@@ -59,6 +59,7 @@ test("returns latest event", async () => {
       amount: 1,
       monoComment: "",
       createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      streamerId: "streamer",
     },
     {
       identifier: "BBB-222",
@@ -67,6 +68,7 @@ test("returns latest event", async () => {
       amount: 2,
       monoComment: "",
       createdAt: new Date("2024-01-02T00:00:00.000Z"),
+      streamerId: "streamer",
     },
   ];
   const { GET } = await setup(events);
