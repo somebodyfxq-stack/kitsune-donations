@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getMonobankSettings, appendIntent } from "@/lib/store";
+import {
+  getMonobankSettings,
+  appendIntent,
+  findStreamerIdBySlug,
+} from "@/lib/store";
 import { buildMonoUrl, generateIdentifier, sanitizeMessage } from "@/lib/utils";
 
 // API endpoint to create a Monobank donation URL.
@@ -43,11 +47,11 @@ export async function GET(req: Request) {
     // Build the Monobank comment (message visible in payment)
     const comment = `${safeMessage} (${identifier})`;
     // Determine which streamer this donation belongs to based on the
-    // request's Referer header.  The donation page lives at /{slug}, e.g.
-    // /somebodyqq, so we can extract the slug from the pathname.  This slug
-    // will be used as the userId when looking up the Monobank settings in
-    // the database.  If no referer is present or the slug is empty, we
-    // cannot determine the recipient of the donation.
+    // request's Referer header. The donation page lives at /{slug}, e.g.
+    // /somebodyqq, so we can extract the slug from the pathname. We then
+    // look up the corresponding user to obtain the streamerId used
+    // throughout the database. If no referer is present or the slug is
+    // empty, we cannot determine the recipient of the donation.
     const referer = req.headers.get("referer") || "";
     let slug = "";
     try {
@@ -66,10 +70,17 @@ export async function GET(req: Request) {
         { status: 400 },
       );
     }
-    // Retrieve Monobank settings for the given streamer.  These settings
-    // contain the jarId to which donations should be sent.  If the jar
+    const streamerId = await findStreamerIdBySlug(slug);
+    if (!streamerId) {
+      return NextResponse.json(
+        { error: "Одержувача не знайдено" },
+        { status: 404 },
+      );
+    }
+    // Retrieve Monobank settings for the given streamer. These settings
+    // contain the jarId to which donations should be sent. If the jar
     // hasn't been configured yet, return an error.
-    const settings = await getMonobankSettings(slug as any);
+    const settings = await getMonobankSettings(streamerId as any);
     const jarId = settings?.jarId;
     if (!jarId) {
       return NextResponse.json(
@@ -85,7 +96,7 @@ export async function GET(req: Request) {
     // stored with the original message (not including the identifier) and
     // the amount as provided.
     await appendIntent({
-      streamerId: slug,
+      streamerId,
       identifier,
       nickname,
       message: safeMessage,

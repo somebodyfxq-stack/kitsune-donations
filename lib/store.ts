@@ -9,6 +9,16 @@ interface SettingMap {}
 
 type SettingKey = keyof SettingMap;
 
+export async function findStreamerIdBySlug(
+  slug: string,
+): Promise<string | undefined> {
+  const user = await prisma.user.findUnique({
+    where: { name: slug.toLowerCase() },
+    select: { id: true },
+  });
+  return user?.id;
+}
+
 export async function appendIntent(
   intent: Omit<DonationIntent, "id">,
 ): Promise<void> {
