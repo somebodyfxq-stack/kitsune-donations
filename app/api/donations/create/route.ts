@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getMonobankSettings,
   appendIntent,
-  findStreamerIdBySlug,
+  findUserIdBySlug,
 } from "@/lib/store";
 import { buildMonoUrl, generateIdentifier, sanitizeMessage } from "@/lib/utils";
 
@@ -52,9 +52,9 @@ export async function GET(req: Request) {
     // Determine which streamer this donation belongs to based on the
     // request's Referer header. The donation page lives at /{slug}, e.g.
     // /somebodyqq, so we can extract the slug from the pathname. We then
-    // look up the corresponding user to obtain the streamerId used
-    // throughout the database. If no referer is present or the slug is
-    // empty, we cannot determine the recipient of the donation.
+    // look up the corresponding user to obtain the userId used throughout
+    // the database. If no referer is present or the slug is empty, we cannot
+    // determine the recipient of the donation.
     const referer = req.headers.get("referer") || "";
     let slug = "";
     try {
@@ -79,21 +79,21 @@ export async function GET(req: Request) {
         { status: 400 },
       );
     }
-    const streamerId = await findStreamerIdBySlug(slug);
-    if (!streamerId) {
+    const userId = await findUserIdBySlug(slug);
+    if (!userId) {
       console.error("Streamer not found", { slug });
       return NextResponse.json(
         { error: "Одержувача не знайдено" },
-        { status: 404 },
+        { status: 400 },
       );
     }
     // Retrieve Monobank settings for the given streamer. These settings
     // contain the jarId to which donations should be sent. If the jar
     // hasn't been configured yet, return an error.
-    const settings = await getMonobankSettings(streamerId as any);
+    const settings = await getMonobankSettings(userId);
     const jarId = settings?.jarId;
     if (!jarId) {
-      console.error("Monobank jar not configured", { streamerId });
+      console.error("Monobank jar not configured", { userId });
       return NextResponse.json(
         { error: "Банка Monobank не налаштована" },
         { status: 500 },
@@ -107,7 +107,7 @@ export async function GET(req: Request) {
     // stored with the original message (not including the identifier) and
     // the amount as provided.
     await appendIntent({
-      streamerId,
+      streamerId: userId,
       identifier,
       nickname,
       message: safeMessage,
