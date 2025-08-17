@@ -11,6 +11,18 @@ import { configureWebhook } from "@/lib/monobank-webhook";
 
 export const runtime = "nodejs";
 
+interface ConnectJarBody {
+  jarId: string;
+}
+
+function isConnectJarBody(data: unknown): data is ConnectJarBody {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    typeof (data as Record<string, unknown>).jarId === "string"
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const session = await getAuthSession();
@@ -21,13 +33,13 @@ export async function POST(req: Request) {
       );
     }
     const body = await req.json();
-    const jarId: unknown = body?.jarId;
-    if (!jarId || typeof jarId !== "string") {
+    if (!isConnectJarBody(body)) {
       return NextResponse.json(
         { error: "Потрібно вибрати банку." },
         { status: 400 },
       );
     }
+    const jarId: string = body.jarId;
     // Persist jar identifier for this user.  Store per‑user Monobank
     // configuration so that each streamer can have their own jar.  We
     // persist the jarId, a random webhookId, and the webhook URL below using
@@ -36,26 +48,25 @@ export async function POST(req: Request) {
     // deploying behind a proxy these headers should be set correctly.
     const proto = req.headers.get("x-forwarded-proto") ?? "http";
     const host = req.headers.get("host") ?? "localhost";
-    const webhookId = crypto.randomUUID();
-    const webhookUrl = `${proto}://${host}/api/monobank/webhook/${webhookId}`;
+    const webhookId: string = crypto.randomUUID();
+    const webhookUrl: string = `${proto}://${host}/api/monobank/webhook/${webhookId}`;
     // Update the Monobank settings for this user including jar and webhook.
-    await upsertMonobankSettings(session.user.id as any, {
+    await upsertMonobankSettings(session.user!.id, {
       jarId,
       webhookId,
       webhookUrl,
-    } as any);
+    });
     // Try to configure the webhook.  Ignore failures since the status
     // endpoint will keep retrying.
     try {
-      await configureWebhook(webhookUrl, undefined, session.user.id as any);
+      await configureWebhook(webhookUrl, undefined, session.user!.id);
     } catch (err) {
       console.error("configureWebhook failed", err);
     }
     // Generate a donation page URL based off of the user's name.  If the
     // name is missing we fall back to the user ID.  Non‑alphanumeric
     // characters are replaced with underscores.
-    const username =
-      session.user?.name ?? (session.user?.id as string) ?? "streamer";
+    const username = session.user.name ?? session.user.id ?? "streamer";
     const slug = username
       .toLowerCase()
       .trim()

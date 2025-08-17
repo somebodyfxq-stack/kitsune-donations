@@ -90,9 +90,12 @@ export function getMonobankSettingsByWebhook(
   return prisma.monobankSettings.findUnique({ where: { webhookId } });
 }
 
+export interface MonobankSettingsUpdate
+  extends Partial<Omit<MonobankSettings, "userId">> {}
+
 export function upsertMonobankSettings(
   userId: string,
-  data: Partial<Omit<MonobankSettings, "userId">>,
+  data: MonobankSettingsUpdate,
 ): Promise<MonobankSettings> {
   return prisma.monobankSettings.upsert({
     where: { userId },
