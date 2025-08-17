@@ -61,7 +61,7 @@ test("appendDonationEvent handles concurrent writes", async () => {
   const events = Array.from({ length: 20 }, (_, i) => buildEvent(i + 100));
   await Promise.all(events.map((_, i) => appendIntent(buildIntent(i + 100))));
   await Promise.all(events.map(appendDonationEvent));
-  const saved = await listDonationEvents();
+  const saved = await listDonationEvents("streamer");
   assert.strictEqual(saved.length, events.length);
 });
 

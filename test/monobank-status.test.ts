@@ -44,7 +44,7 @@ async function setup(events: Array<Omit<DonationEvent, "id">>) {
 
 test("reports inactive when no events", async () => {
   const { GET } = await setup([]);
-  const res = await GET(new Request("http://localhost"));
+  const res = await GET(new Request("http://localhost", { headers: { "x-user-id": "streamer" } }));
   assert.strictEqual(res.status, 200);
   const body = await res.json();
   assert.deepStrictEqual(body, { isActive: false, event: null });
@@ -72,7 +72,7 @@ test("returns latest event", async () => {
     },
   ];
   const { GET } = await setup(events);
-  const res = await GET(new Request("http://localhost"));
+  const res = await GET(new Request("http://localhost", { headers: { "x-user-id": "streamer" } }));
   assert.strictEqual(res.status, 200);
   const body = await res.json();
   assert.strictEqual(body.isActive, true);
