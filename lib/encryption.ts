@@ -1,15 +1,19 @@
 import crypto from 'node:crypto';
 
-// Ключ шифрування з environment variable
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-if (!ENCRYPTION_KEY) {
-  throw new Error('ENCRYPTION_KEY environment variable is required for token encryption');
-}
+// Отримуємо та валідуємо ключ шифрування
+function getEncryptionKey(): Buffer {
+  const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+  if (!ENCRYPTION_KEY) {
+    throw new Error('ENCRYPTION_KEY environment variable is required for token encryption');
+  }
 
-// Перевірити довжину ключа (потрібно 32 байти для AES-256)
-const keyBuffer = Buffer.from(ENCRYPTION_KEY, 'hex');
-if (keyBuffer.length !== 32) {
-  throw new Error('ENCRYPTION_KEY must be a 64-character hex string (32 bytes)');
+  // Перевірити довжину ключа (потрібно 32 байти для AES-256)
+  const keyBuffer = Buffer.from(ENCRYPTION_KEY, 'hex');
+  if (keyBuffer.length !== 32) {
+    throw new Error('ENCRYPTION_KEY must be a 64-character hex string (32 bytes)');
+  }
+
+  return keyBuffer;
 }
 
 /**
@@ -18,6 +22,8 @@ if (keyBuffer.length !== 32) {
  */
 export function encryptToken(token: string): string {
   if (!token) return '';
+  
+  const keyBuffer = getEncryptionKey();
   
   // Генеруємо випадковий IV (16 байт для CBC)
   const iv = crypto.randomBytes(16);
@@ -41,6 +47,8 @@ export function decryptToken(encryptedToken: string): string | null {
   if (!encryptedToken) return null;
   
   try {
+    const keyBuffer = getEncryptionKey();
+    
     // Розбиваємо на частини: IV:encryptedData
     const parts = encryptedToken.split(':');
     if (parts.length !== 2) {
