@@ -1,25 +1,11 @@
 import test from "node:test";
 import assert from "node:assert";
-import fs from "node:fs/promises";
-import path from "node:path";
-import os from "node:os";
-import { execSync } from "node:child_process";
+import { createTestDatabase, cleanupTestDatabase } from "./test-utils.ts";
 
 async function buildStore() {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "store-test-"));
-  process.env.DATABASE_URL = `file:${path.join(dir, "test.db")}`;
-  delete (globalThis as any).prisma;
-  execSync("npx prisma db push --schema prisma/schema.prisma", {
-    stdio: "ignore",
-  });
+  const { dir, prisma } = await createTestDatabase();
   const store = await import("../lib/store.ts");
-  const db = await import("../lib/db.ts");
-  await db.prisma.user.upsert({
-    where: { id: "streamer" },
-    update: {},
-    create: { id: "streamer" },
-  });
-  return { dir, prisma: db.prisma, ...store };
+  return { dir, prisma, ...store };
 }
 
 function buildIntent(i: number) {

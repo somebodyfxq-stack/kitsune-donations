@@ -45,7 +45,7 @@ export function sanitizeMessage(message: string): string {
 /**
  * Construct a Monobank donation URL.
  *
- * @param jarId - target jar identifier
+ * @param jarId - target jar identifier (may or may not include "jar/" prefix)
  * @param amount - donation amount
  * @param message - message to encode
  * @returns Monobank donation URL
@@ -56,5 +56,7 @@ export function buildMonoUrl(
   message: string,
 ): string {
   const encoded = encodeURIComponent(message);
-  return `https://send.monobank.ua/jar/${jarId}?a=${Math.round(amount)}&t=${encoded}`;
+  // Ensure jarId doesn't already have the "jar/" prefix to avoid duplication
+  const cleanJarId = jarId.startsWith("jar/") ? jarId.substring(4) : jarId;
+  return `https://send.monobank.ua/jar/${cleanJarId}?a=${Math.round(amount)}&t=${encoded}`;
 }

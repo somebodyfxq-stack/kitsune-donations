@@ -1,19 +1,10 @@
 import test from "node:test";
 import assert from "node:assert";
 import { configureWebhook } from "@/lib/monobank-webhook";
-import fs from "node:fs/promises";
-import path from "path";
-import os from "node:os";
-import { execSync } from "node:child_process";
+import { createTestDatabase } from "./test-utils.ts";
 
 async function setupToken() {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "webhook-test-"));
-  process.env.DATABASE_URL = `file:${path.join(dir, "test.db")}`;
-  delete (globalThis as any).prisma;
-  execSync("npx prisma db push --schema prisma/schema.prisma", {
-    stdio: "ignore",
-  });
-  const { prisma } = await import("../lib/db.ts");
+  const { prisma } = await createTestDatabase();
   const { upsertMonobankSettings } = await import("../lib/store.ts");
   const user = await prisma.user.create({ data: {} });
   await upsertMonobankSettings(user.id, { token: "token" });

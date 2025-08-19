@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { addClient } from "@/lib/sse";
 
 export const runtime = "nodejs";
 
-export async function GET() {
-  const { stream } = addClient();
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const streamerId = searchParams.get("streamerId") || null;
+  
+  const { stream } = addClient(streamerId);
 
   return new NextResponse(stream, {
     headers: {

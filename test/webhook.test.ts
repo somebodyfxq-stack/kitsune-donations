@@ -1,10 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
 import { NextRequest } from "next/server";
-import fs from "node:fs/promises";
-import path from "path";
-import os from "node:os";
-import { execSync } from "node:child_process";
+import { createTestDatabase } from "./test-utils.ts";
 
 interface RouteHandlers {
   webhookId: string;
@@ -19,13 +16,7 @@ let cached: RouteHandlers | null = null;
 
 async function setup(): Promise<RouteHandlers> {
   if (cached) return cached;
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "webhook-test-"));
-  process.env.DATABASE_URL = `file:${path.join(dir, "test.db")}`;
-  delete (globalThis as any).prisma;
-  execSync("npx prisma db push --schema prisma/schema.prisma", {
-    stdio: "ignore",
-  });
-  const { prisma } = await import("../lib/db.ts");
+  const { prisma } = await createTestDatabase();
   const { upsertMonobankSettings } = await import("../lib/store.ts");
   const user = await prisma.user.create({ data: {} });
   const webhookId = "hook";

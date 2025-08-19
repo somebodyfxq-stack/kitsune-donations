@@ -5,6 +5,15 @@ import type { DonationEvent } from "@prisma/client";
 export interface StatusData {
   isActive: boolean;
   event: (DonationEvent & { createdAt: string }) | null;
+  isConnected?: boolean;
+  jarTitle?: string;
+  jarGoal?: number;
+  obsWidgetToken?: string;
+  webhookStatus?: {
+    url?: string;
+    isConfigured: boolean;
+    lastError?: string;
+  };
 }
 
 interface StatusClientProps {
@@ -12,37 +21,25 @@ interface StatusClientProps {
 }
 
 export function StatusClient({ initial }: StatusClientProps) {
-  const [data, setData] = useState<StatusData>(initial);
-  useEffect(() => {
-    const es = new EventSource("/api/stream?ts=" + Date.now());
-    es.addEventListener("donation", (ev) => {
-      try {
-        const event: DonationEvent & { createdAt: string } = JSON.parse(
-          (ev as MessageEvent).data
-        );
-        setData((prev) => ({ ...prev, isActive: true, event }));
-      } catch (err) {
-        console.error("Failed to handle donation event", err);
-      }
-    });
-    es.addEventListener("error", (err) => {
-      console.error("EventSource error", err);
-    });
-    return () => es.close();
-  }, []);
-  return <StatusDetails data={data} />;
+  // Компонент тимчасово прихований - інформація про останній донат тепер в історії донатів
+  return null;
 }
 
 function StatusDetails({ data }: { data: StatusData }) {
-  if (!data.event)
-    return <p className="text-center text-neutral-400">No events yet</p>;
+  if (!data.event) return null; // Прибираємо "No events yet"
+  
   const ev = data.event;
   const time = new Date(ev.createdAt).toLocaleString();
   return (
-    <div className="grid gap-2 text-center">
-      <p className="text-sm text-neutral-300">{time}</p>
-      <p className="font-mono">{ev.identifier}</p>
-      <p className="text-xl font-semibold">{ev.amount.toFixed(2)} ₴</p>
+    <div className="card p-6 md:p-8">
+      <h2 className="text-lg font-medium mb-4 text-center">Останній донат</h2>
+      <div className="grid gap-2 text-center">
+        <p className="text-sm text-neutral-400">{time}</p>
+        <p className="font-mono text-neutral-300">{ev.identifier}</p>
+        <p className="text-2xl font-bold text-gradient">{ev.amount.toFixed(2)} ₴</p>
+        <p className="text-sm text-neutral-300 mt-2">{ev.nickname}</p>
+        <p className="text-xs text-neutral-400 italic">"{ev.message}"</p>
+      </div>
     </div>
   );
 }

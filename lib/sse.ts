@@ -2,6 +2,7 @@ interface Client {
   id: number;
   controller: ReadableStreamDefaultController;
   timer?: ReturnType<typeof setInterval>;
+  streamerId?: string | null; // Фільтр по конкретному стрімеру, null = всі донати
 }
 
 export interface DonationPayload {
@@ -11,6 +12,8 @@ export interface DonationPayload {
   amount: number;
   createdAt: string;
   monoComment?: string;
+  jarTitle?: string; // Назва банки на момент донату
+  streamerId: string; // ID стрімера для якого донат
 }
 
 interface SseGlobal {
@@ -24,12 +27,12 @@ sseGlobal.__sseIdCounter ??= 1;
 
 const clients = sseGlobal.__sseClients;
 
-export function addClient() {
+export function addClient(streamerId?: string | null) {
   const id = sseGlobal.__sseIdCounter!;
   sseGlobal.__sseIdCounter! += 1;
   const stream = new ReadableStream({
     start(controller) {
-      const client: Client = { id, controller };
+      const client: Client = { id, controller, streamerId };
       clients.push(client);
       const encoder = new TextEncoder();
       function send(event: string, data: string) {
@@ -55,14 +58,28 @@ export function addClient() {
 }
 
 export function broadcastDonation(payload: DonationPayload) {
+  console.log(`Broadcasting donation to ${clients.length} clients:`, payload);
+  
   const encoded = new TextEncoder().encode(
     `event: donation\ndata: ${JSON.stringify(payload)}\n\n`,
   );
-  clients.forEach((c) => {
+  
+  let sentCount = 0;
+  clients.forEach((c, index) => {
     try {
-      c.controller.enqueue(encoded);
+      // Фільтруємо клієнтів: якщо streamerId не вказан - показуємо всі донати,
+      // якщо вказан - показуємо тільки для цього стрімера
+      const shouldSend = c.streamerId === null || c.streamerId === payload.streamerId;
+      console.log(`Client ${index}: streamerId=${c.streamerId}, shouldSend=${shouldSend}`);
+      
+      if (shouldSend) {
+        c.controller.enqueue(encoded);
+        sentCount++;
+      }
     } catch (err) {
       console.error("Failed to broadcast donation", err);
     }
   });
+  
+  console.log(`Sent donation to ${sentCount}/${clients.length} clients`);
 }

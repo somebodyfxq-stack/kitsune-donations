@@ -17,6 +17,9 @@ model DonationIntent {
   streamerId String
   streamer   User            @relation(fields: [streamerId], references: [id], onDelete: Cascade)
   events     DonationEvent[] @relation("IntentEvents")
+  
+  @@index([streamerId, createdAt])  // Для пошуку intents по стрімеру
+  @@index([streamerId])
 }
 
 model DonationEvent {
@@ -26,6 +29,7 @@ model DonationEvent {
   message     String
   amount      Int
   monoComment String
+  jarTitle    String?         // Назва банки на момент донату
   createdAt   DateTime        @default(now())
   intent      DonationIntent? @relation("IntentEvents", fields: [identifier], references: [identifier])
   streamerId  String
@@ -33,6 +37,8 @@ model DonationEvent {
 
   @@unique([identifier, createdAt])
   @@index([identifier])
+  @@index([streamerId, createdAt])  // Для оптимізації listDonationEvents
+  @@index([streamerId])             // Для загальних запитів по стрімеру
 }
 
 model Setting {
@@ -81,10 +87,15 @@ model Session {
 }
 
 model MonobankSettings {
-  userId     String  @id
-  token      String?
-  jarId      String?
-  webhookId  String? @unique
-  webhookUrl String?
-  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String  @id
+  token           String?
+  jarId           String?
+  jarTitle        String?
+  jarGoal         Int?
+  webhookId       String? @unique
+  webhookUrl      String?
+  webhookSecret   String? // Per-user секрет для верифікації webhook підпису
+  obsWidgetToken  String? @unique // Унікальний токен для OBS віджета
+  donationsPaused Boolean @default(false) // Чи призупинені донати для цього користувача
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { DonationForm } from "@/components/donation-form";
 import { getAuthSession } from "@/lib/auth";
+import { DonationForm } from "@/components/donation-form";
 
 interface StreamerPageProps {
   params: { twitchName: string };
@@ -26,7 +26,7 @@ export default async function StreamerPage({ params }: StreamerPageProps) {
       </div>
       <div className="relative mx-auto max-w-2xl px-6 py-14">
         <header className="mb-8 text-center">
-          <h1 className="title-gradient text-4xl font-extrabold drop-shadow-sm md:text-4xl">
+          <h1 className="title-gradient text-4xl font-extrabold leading-tight md:text-4xl pb-1">
             Підтримати {twitchName}
           </h1>
           <div className="badge mt-3">Донат через Monobank 💖</div>

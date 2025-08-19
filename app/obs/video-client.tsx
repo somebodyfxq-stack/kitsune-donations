@@ -21,6 +21,7 @@ export function VideoClient() {
   });
   const queueRef = useRef<VideoPayload[]>([]);
   const currentRef = useRef<VideoPayload | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const playNext = useCallback(() => {
     const next = queueRef.current.shift() || null;
@@ -40,7 +41,11 @@ export function VideoClient() {
       es.addEventListener("error", () => {
         setConnection({ status: "error" });
         es.close();
-        setTimeout(connect, 3000);
+        // Очистити попередній reconnect таймер
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+        reconnectTimeoutRef.current = setTimeout(connect, 3000);
       });
       es.addEventListener("video", (ev) => {
         try {
@@ -53,7 +58,13 @@ export function VideoClient() {
       });
     }
     connect();
-    return () => es.close();
+    return () => {
+      es.close();
+      // Очистити reconnect таймер при unmount
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
   }, [playNext]);
 
   function handleSkip() {
@@ -123,8 +134,10 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
     function handleState(event: { data: number }) {
       if (event.data === window.YT?.PlayerState?.ENDED) onEnd();
     }
+    
     function createPlayer() {
-      playerRef.current = new window.YT.Player(containerRef.current!, {
+      if (!containerRef.current) return;
+      playerRef.current = new window.YT.Player(containerRef.current, {
         videoId,
         playerVars: { autoplay: 1, controls: 0, rel: 0 },
         events: { onStateChange: handleState },
@@ -133,13 +146,44 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
       iframe.setAttribute("loading", "lazy");
       iframe.setAttribute("title", "Donation video player");
     }
-    if (window.YT?.Player) createPlayer();
-    else {
-      window.onYouTubeIframeAPIReady = createPlayer;
+
+    // Перевірити чи скрипт уже завантажений
+    const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+    
+    if (window.YT?.Player) {
+      createPlayer();
+    } else if (!existingScript) {
+      // Зберегти попередній callback
+      const originalCallback = window.onYouTubeIframeAPIReady;
+      
+      window.onYouTubeIframeAPIReady = () => {
+        createPlayer();
+        // Викликати попередній callback якщо він був
+        if (originalCallback && typeof originalCallback === 'function') {
+          originalCallback();
+        }
+      };
+      
       const script = document.createElement("script");
       script.src = "https://www.youtube.com/iframe_api";
+      script.id = "youtube-iframe-api";
       document.body.appendChild(script);
+    } else {
+      // Скрипт завантажується, просто дочекаємося
+      const checkYT = setInterval(() => {
+        if (window.YT?.Player) {
+          clearInterval(checkYT);
+          createPlayer();
+        }
+      }, 100);
+      
+      // Cleanup інтервал
+      return () => {
+        clearInterval(checkYT);
+        playerRef.current?.destroy();
+      };
     }
+    
     return () => {
       playerRef.current?.destroy();
     };

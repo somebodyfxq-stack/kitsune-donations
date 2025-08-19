@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { StatusData } from "./status-client";
 
 // UI component for connecting a Monobank jar to the streamer account.
 // It manages three phases:
@@ -15,13 +16,20 @@ interface Jar {
   balance: number;
 }
 
-export function MonobankClient() {
+interface MonobankClientProps {
+  initial: StatusData;
+}
+
+export function MonobankClient({ initial }: MonobankClientProps) {
   const [expanded, setExpanded] = useState(false);
   const [token, setToken] = useState("");
   const [jars, setJars] = useState<Jar[]>([]);
   const [selectedJar, setSelectedJar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(initial.isConnected || false);
+  const [connectedJarTitle, setConnectedJarTitle] = useState<string | null>(initial.jarTitle || null);
+  const [connectedJarGoal, setConnectedJarGoal] = useState<number | null>(initial.jarGoal || null);
 
   async function handleGetData() {
     setMessage(null);
@@ -70,20 +78,32 @@ export function MonobankClient() {
     }
     setLoading(true);
     try {
+      // Знаходимо дані обраної банки
+      const selectedJarData = jars.find(jar => jar.id === selectedJar);
+      
       const res = await fetch("/api/monobank/connect-jar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jarId: selectedJar }),
+        body: JSON.stringify({ 
+          jarId: selectedJar, 
+          jarTitle: selectedJarData?.title || "Банка",
+          jarGoal: selectedJarData?.goal || 0
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
         setMessage(data?.error || "Не вдалося підключити банку.");
       } else {
-        setMessage(
-          data?.donationUrl
-            ? `Підключено! Посилання для донатів: ${data.donationUrl}`
-            : "Банка підключена."
-        );
+        // Знаходимо дані підключеної банки
+        const connectedJar = jars.find(jar => jar.id === selectedJar);
+        const jarTitle = connectedJar?.title || "Банка";
+        const jarGoal = connectedJar?.goal || 0;
+        
+        setIsConnected(true);
+        setConnectedJarTitle(jarTitle);
+        setConnectedJarGoal(jarGoal);
+        setMessage(`✅ ${jarTitle} успішно підключена! Тепер ви можете приймати донати.`);
+        setExpanded(false); // Згорнути форму після успішного підключення
       }
     } catch (err) {
       setMessage((err as Error).message);
@@ -93,7 +113,7 @@ export function MonobankClient() {
   }
 
   return (
-    <div className="mt-6 bg-neutral-900 rounded-lg p-6 text-neutral-100">
+    <div className="card p-6 md:p-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -105,23 +125,84 @@ export function MonobankClient() {
             Комісія системи 0%. Донат від 10 до 29 999&nbsp;грн.
           </p>
         </div>
-        {/* Future toggle for enabling/disabling Monobank integration.  At the
-            moment it is not interactive but visually matches the design. */}
-        <div className="relative inline-flex h-6 w-11 cursor-pointer rounded-full bg-neutral-700 transition-colors">
-          <span className="absolute left-1 top-1 inline-block h-4 w-4 transform rounded-full bg-brand-500 transition-transform"></span>
+        {/* Toggle для стану Monobank інтеграції */}
+        <div className={`relative inline-flex h-6 w-11 cursor-pointer rounded-full transition-colors ${
+          isConnected ? 'bg-green-500' : 'bg-neutral-700'
+        }`}>
+          <span className={`absolute top-1 inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+            isConnected ? 'translate-x-6' : 'translate-x-1'
+          }`}></span>
         </div>
       </div>
-      {/* Expandable area */}
-      {!expanded && (
-        <div className="mt-6">
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-md bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-            onClick={() => setExpanded(true)}
-          >
-            Підключити банку
-          </button>
+      {/* Connected jar info or connect button */}
+      {isConnected ? (
+        <div className="mt-6 p-4 rounded-2xl bg-green-500/10 border border-green-500/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+              </svg>
+            </div>
+            <div>
+              <p className="text-white font-medium">
+                Підключено банку «{connectedJarTitle || "Банка"}»
+              </p>
+              {connectedJarGoal && (
+                <p className="text-neutral-300 text-sm mt-0.5">
+                  Цільова сума: {connectedJarGoal.toLocaleString()} ₴
+                </p>
+              )}
+              <p className="text-green-400 text-sm mt-1">Готово до прийому донатів</p>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary text-sm ml-auto"
+              onClick={() => setExpanded(true)}
+            >
+              Змінити
+            </button>
+          </div>
+
+          {/* Webhook status */}
+          {initial.webhookStatus && (
+            <div className="mt-3 p-3 rounded-xl bg-neutral-800/50 border border-neutral-700/50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-300">Webhook статус:</span>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    initial.webhookStatus.isConfigured && !initial.webhookStatus.lastError 
+                      ? 'bg-green-400' 
+                      : 'bg-red-400'
+                  }`}></div>
+                  <span className="text-sm font-mono">
+                    {initial.webhookStatus.isConfigured && !initial.webhookStatus.lastError
+                      ? '200 OK'
+                      : initial.webhookStatus.lastError || 'Not configured'
+                    }
+                  </span>
+                </div>
+              </div>
+              {initial.webhookStatus.url && (
+                <div className="mt-2 text-xs text-neutral-400 font-mono break-all">
+                  {initial.webhookStatus.url}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
+      ) : (
+        !expanded && (
+          <div className="mt-6">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setExpanded(true)}
+            >
+              Підключити банку
+            </button>
+          </div>
+        )
       )}
       {expanded && (
         <div className="mt-6 space-y-4">
@@ -134,7 +215,7 @@ export function MonobankClient() {
               <input
                 id="mono-token"
                 type="text"
-                className="flex-1 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="input-base flex-1 h-[42px]"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="Введіть особистий API токен"
@@ -142,7 +223,7 @@ export function MonobankClient() {
               <button
                 type="button"
                 onClick={handleGetData}
-                className="rounded-md bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="btn-primary px-4 h-[42px]"
                 disabled={loading}
               >
                 Отримати дані
@@ -155,30 +236,68 @@ export function MonobankClient() {
           </div>
           {/* Jar list */}
           {jars.length > 0 && (
-            <div className="space-y-2">
+            <div className="grid gap-3 grid-cols-2">
               {jars.map((jar) => (
                 <label
                   key={jar.id}
-                  className="flex cursor-pointer items-center justify-between rounded-md border border-neutral-700 bg-neutral-800 p-4 hover:border-brand-500"
+                  className={`flex cursor-pointer items-start p-4 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition ${
+                    selectedJar === jar.id 
+                      ? 'ring-2 ring-purple-400 bg-white/10' 
+                      : ''
+                  }`}
                 >
-                  <div>
-                    <p className="text-sm font-medium">
-                      {jar.title || "Невідома банка"}
-                    </p>
-                    <p className="text-xs text-neutral-400 mt-1">
-                      Ціль: {jar.goal.toLocaleString()}&nbsp;₴
-                    </p>
-                    <p className="text-xs text-neutral-400">
-                      Баланс: {jar.balance.toLocaleString()}&nbsp;₴
-                    </p>
+                  <div className="flex items-center gap-3 w-full">
+                    {/* Jar icon */}
+                    <div 
+                      className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-center bg-no-repeat"
+                      style={{
+                        backgroundImage: 'url(/icons/jar_bg.png)',
+                        backgroundSize: '100%'
+                      }}
+                    >
+                      <img
+                        src="/icons/jar.png"
+                        alt="Jar icon"
+                        className="w-8 h-8 object-contain"
+                      />
+                    </div>
+                    
+                    {/* Jar info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white leading-tight mb-1">
+                        {jar.title || "Невідома банка"}
+                      </p>
+                      <p className="text-xs text-neutral-400">
+                        Ціль: {jar.goal.toLocaleString()}&nbsp;₴
+                      </p>
+                      <p className="text-xs text-neutral-400">
+                        Баланс: {jar.balance.toLocaleString()}&nbsp;₴
+                      </p>
+                    </div>
+                    
+                    {/* Custom checkbox */}
+                    <div className="flex-shrink-0">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        selectedJar === jar.id
+                          ? 'border-purple-400 bg-purple-400'
+                          : 'border-neutral-400 bg-transparent'
+                      }`}>
+                        {selectedJar === jar.id && (
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                          </svg>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  
                   <input
                     type="radio"
                     name="jar"
                     value={jar.id}
                     checked={selectedJar === jar.id}
                     onChange={() => setSelectedJar(jar.id)}
-                    className="h-4 w-4 text-brand-500 focus:ring-brand-500 border-neutral-600"
+                    className="sr-only"
                   />
                 </label>
               ))}
@@ -190,7 +309,7 @@ export function MonobankClient() {
               <button
                 type="button"
                 onClick={handleConnect}
-                className="w-full rounded-md bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="btn-primary w-full"
                 disabled={loading}
               >
                 Підключити
@@ -198,7 +317,7 @@ export function MonobankClient() {
             </div>
           )}
           {message && (
-            <div className="mt-4 rounded-md bg-neutral-800 p-3 text-sm text-yellow-400">
+            <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 text-sm text-neutral-300">
               {message}
             </div>
           )}

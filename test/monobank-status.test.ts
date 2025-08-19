@@ -1,24 +1,10 @@
 import test from "node:test";
 import assert from "node:assert";
-import fs from "node:fs/promises";
-import path from "path";
-import os from "node:os";
-import { execSync } from "node:child_process";
 import type { DonationEvent } from "@prisma/client";
+import { createTestDatabase } from "./test-utils.ts";
 
 async function setup(events: Array<Omit<DonationEvent, "id">>) {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "status-test-"));
-  process.env.DATABASE_URL = `file:${path.join(dir, "test.db")}`;
-  delete (globalThis as any).prisma;
-  execSync("npx prisma db push --schema prisma/schema.prisma", {
-    stdio: "ignore",
-  });
-  const { prisma } = await import("../lib/db.ts");
-  await prisma.user.upsert({
-    where: { id: "streamer" },
-    update: {},
-    create: { id: "streamer" },
-  });
+  const { prisma } = await createTestDatabase();
   if (events.length) {
     await prisma.donationIntent.createMany({
       data: events.map((e) => ({

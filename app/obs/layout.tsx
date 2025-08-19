@@ -6,11 +6,8 @@ interface LayoutProps {
 
 export default function OBSLayout({ children }: LayoutProps) {
   return (
-    <html lang="uk">
-      <head>
-        <meta httpEquiv="Cache-Control" content="no-store" />
-      </head>
-      <body style={{ background: "transparent" }}>{children}</body>
-    </html>
+    <div className="obs-layout" style={{ background: "transparent", minHeight: "100vh" }}>
+      {children}
+    </div>
   );
 }

@@ -1,9 +1,9 @@
-import { Suspense } from "react";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getAuthSession } from "@/lib/auth";
-import { StatusClient, type StatusData } from "./status-client";
-import { MonobankClient } from "./monobank-client";
+import { getMonobankSettings, listDonationEvents } from "@/lib/store";
+import { type StatusData } from "./status-client";
+import { PanelTabs } from "./panel-tabs";
+import type { MonobankSettings } from "@prisma/client";
 
 // PanelPage displays Monobank donation settings for the authenticated
 // streamer.  It shows the latest donation status and provides a UI to
@@ -12,30 +12,71 @@ import { MonobankClient } from "./monobank-client";
 
 export default async function PanelPage() {
   const session = await getAuthSession();
-  if (!session || session.user?.role !== "streamer") {
+  if (!session?.user || !('role' in session.user) || session.user.role !== "streamer") {
     redirect("/login");
   }
-  // Build an absolute URL for the status API to allow SSR behind proxies.
-  const h = headers();
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const host = h.get("host") ?? "localhost";
-  const res = await fetch(`${proto}://${host}/api/monobank/status`, {
-    cache: "no-store",
-  });
-  const status: StatusData = await res.json();
+  
+  // Отримуємо дані безпосередньо з БД замість HTTP запиту  
+  const userId = 'id' in session.user ? session.user.id : '';
+  if (!userId) redirect("/login");
+  
+  const status: StatusData = {
+    isActive: false,
+    event: null,
+    isConnected: false,
+    jarTitle: undefined,
+    jarGoal: undefined,
+    obsWidgetToken: undefined
+  };
+
+  let donations: any[] = [];
+  
+  try {
+    // Отримуємо налаштування Monobank
+    const settings = await getMonobankSettings(userId) as MonobankSettings | null;
+    
+    // Перевіряємо чи банка підключена
+    if (settings?.jarId) {
+      status.isConnected = true;
+      status.jarTitle = settings.jarTitle || "Підключена банка";
+      status.jarGoal = settings.jarGoal || undefined;
+    }
+    
+    // Передаємо obsWidgetToken
+    status.obsWidgetToken = settings?.obsWidgetToken || undefined;
+    
+    // Отримуємо історію донатів
+    const events = await listDonationEvents(userId);
+    donations = events.map(event => ({
+      ...event,
+      createdAt: event.createdAt.toISOString()
+    }));
+    
+    const lastEvent = events.at(-1) ?? null;
+    status.isActive = Boolean(lastEvent);
+    status.event = lastEvent ? {
+      ...lastEvent,
+      createdAt: lastEvent.createdAt.toISOString()
+    } as any : null;
+  } catch (err) {
+    console.error("Failed to load panel data", err);
+  }
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <h1 className="mb-4 text-2xl font-bold text-white">
-        Налаштування Monobank
-      </h1>
-      {/* Show the last donation event and connection status */}
-      <div className="mb-6">
-        <Suspense fallback={<div>Loading…</div>}>
-          <StatusClient initial={status} />
-        </Suspense>
+    <main className="relative min-h-screen overflow-hidden">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-fuchsia-600/20 blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 h-[36rem] w-[36rem] rounded-full bg-violet-600/20 blur-3xl" />
       </div>
-      {/* UI for connecting the Monobank jar */}
-      <MonobankClient />
-    </div>
+      <div className="relative mx-auto max-w-6xl px-6 py-14">
+        <header className="mb-8 text-center">
+          <h1 className="title-gradient text-4xl font-extrabold leading-tight md:text-4xl pb-1">
+            Панель керування
+          </h1>
+        </header>
+        
+        {/* Tabbed interface */}
+        <PanelTabs initial={status} donations={donations} />
+      </div>
+    </main>
   );
 }

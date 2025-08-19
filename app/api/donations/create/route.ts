@@ -7,9 +7,16 @@ import {
 import { buildMonoUrl, generateIdentifier, sanitizeMessage } from "@/lib/utils";
 
 // API endpoint to create a Monobank donation URL.
-// It accepts query parameters for nickname, amount, message and optional
-// youtube link.  It validates the inputs, stores a donation intent in the
-// database and returns a URL to the Monobank jar for payment.
+//
+// This endpoint accepts query parameters for `nickname`, `amount`,
+// `message` and an optional `youtube` URL.  It performs input
+// validation, determines which user the donation is for based on the
+// Referer header or a `streamer` query parameter, stores a donation
+// intent in the database and returns a URL to the configured
+// Monobank jar.  If validation fails a descriptive error is returned
+// with a 400 status.  If no jar is configured a 400 status is also
+// returned so that clients can show an informative message rather
+// than treat the error as an internal server failure.
 
 export const runtime = "nodejs";
 
@@ -19,9 +26,8 @@ export async function GET(req: Request) {
     const nickname = (url.searchParams.get("nickname") || "").trim();
     const amountStr = url.searchParams.get("amount") || "";
     const messageRaw = url.searchParams.get("message") || "";
-    const youtube = url.searchParams.get("youtube") || undefined;
+    const _youtube = url.searchParams.get("youtube") || undefined;
     const amount = Number(amountStr);
-
     // Basic validation
     if (!nickname || nickname.length > 30) {
       console.error("Invalid nickname", { nicknameLength: nickname.length });
@@ -49,17 +55,15 @@ export async function GET(req: Request) {
     const identifier = generateIdentifier();
     // Build the Monobank comment (message visible in payment)
     const comment = `${safeMessage} (${identifier})`;
-    // Determine which streamer this donation belongs to based on the
-    // request's Referer header. The donation page lives at /{slug}, e.g.
-    // /somebodyqq, so we can extract the slug from the pathname. We then
-    // look up the corresponding user to obtain the userId used throughout
-    // the database. If no referer is present or the slug is empty, we cannot
-    // determine the recipient of the donation.
+    // Determine which streamer/admin this donation belongs to.  The
+    // donation page lives at /{slug}, e.g. /somebodyqq, so we can
+    // extract the slug from the referer path.  If none is found we
+    // fall back to a `streamer` query parameter.  If we still can't
+    // determine the recipient we bail with a 400.
     const referer = req.headers.get("referer") || "";
     let slug = "";
     try {
       const refererUrl = new URL(referer);
-      // split the pathname and remove empty segments; take the first segment
       const parts = refererUrl.pathname.split("/").filter(Boolean);
       slug = parts[0] || "";
     } catch {
@@ -70,10 +74,7 @@ export async function GET(req: Request) {
       const safeUrl = new URL(req.url);
       safeUrl.searchParams.delete("message");
       safeUrl.searchParams.delete("nickname");
-      console.error("Missing streamer for donation", {
-        referer,
-        url: safeUrl.toString(),
-      });
+      console.error("Missing streamer for donation", { referer, url: safeUrl.toString() });
       return NextResponse.json(
         { error: "Не вдалося визначити одержувача донату" },
         { status: 400 },
@@ -87,16 +88,18 @@ export async function GET(req: Request) {
         { status: 400 },
       );
     }
-    // Retrieve Monobank settings for the given streamer. These settings
-    // contain the jarId to which donations should be sent. If the jar
-    // hasn't been configured yet, return an error.
+    // Retrieve Monobank settings for the given streamer/admin.  These
+    // settings contain the jarId to which donations should be sent.  If
+    // the jar hasn't been configured yet, return an error.  We use a
+    // 400 status here so that clients can display the message to the
+    // user instead of a generic failure.
     const settings = await getMonobankSettings(userId);
     const jarId = settings?.jarId;
     if (!jarId) {
       console.error("Monobank jar not configured", { userId });
       return NextResponse.json(
         { error: "Банка Monobank не налаштована" },
-        { status: 500 },
+        { status: 400 },
       );
     }
     // Construct the payment URL.  The Monobank URL expects the amount in
@@ -104,8 +107,8 @@ export async function GET(req: Request) {
     const paymentUrl = buildMonoUrl(jarId, amount, comment);
     // Record the donation intent in the database so that incoming webhook
     // events can be matched to this intent later.  Note: the intent is
-    // stored with the original message (not including the identifier) and
-    // the amount as provided.
+    // stored with the original message (not including the identifier)
+    // and the amount as provided.
     await appendIntent({
       streamerId: userId,
       identifier,

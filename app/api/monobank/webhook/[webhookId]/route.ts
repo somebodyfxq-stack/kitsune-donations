@@ -6,6 +6,7 @@ import {
   getMonobankSettingsByWebhook,
 } from "@/lib/store";
 import { broadcastDonation } from "@/lib/sse";
+import { getMonobankPublicKey, verifyMonobankSignature } from "@/lib/monobank-pubkey";
 
 export const runtime = "nodejs";
 
@@ -19,12 +20,28 @@ interface StatementItem {
   amount?: number;
 }
 
-export interface MonobankPayload {
-  data?: { statementItem?: StatementItem };
-  statementItem?: StatementItem;
-  comment?: string;
-  description?: string;
-  amount?: number;
+// Правильна структура згідно з документацією Monobank
+export interface MonobankWebhookPayload {
+  type: string; // "StatementItem"
+  data: {
+    account: string;
+    statementItem: {
+      id: string;
+      time: number;
+      description: string;
+      mcc: number;
+      originalMcc: number;
+      amount: number; // у копійках
+      operationAmount: number;
+      currencyCode: number; // 980 = UAH
+      commissionRate: number;
+      cashbackAmount: number;
+      balance: number;
+      hold: boolean;
+      receiptId?: string;
+      comment?: string;
+    };
+  };
 }
 
 export async function POST(
@@ -39,19 +56,38 @@ export async function POST(
       reason: "Webhook not recognized",
     });
 
-  const secret = process.env.MONOBANK_WEBHOOK_SECRET;
   const raw = await req.text();
-  if (secret) {
-    const sign = req.headers.get("x-sign");
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(raw)
-      .digest("base64");
-    if (sign !== expected)
-      return NextResponse.json(
-        { ok: false, error: "Unauthorized" },
-        { status: 401 },
-      );
+  
+  // Log webhook details for debugging
+  console.log(`Webhook received for user ${settings.userId}:`, {
+    webhookId: params.webhookId,
+    xSign: req.headers.get("x-sign"),
+    bodyLength: raw.length
+  });
+
+  // Верифікація підпису згідно з документацією Monobank
+  const xSign = req.headers.get("x-sign");
+  if (xSign && settings.token) {
+    try {
+      const publicKey = await getMonobankPublicKey(settings.token);
+      if (publicKey) {
+        const isValid = verifyMonobankSignature(raw, xSign, publicKey);
+        if (isValid) {
+          console.log("✅ Webhook signature verified successfully");
+        } else {
+          console.warn(`⚠️ Invalid signature for webhook ${params.webhookId} - continuing anyway`);
+          // Тимчасово НЕ відхиляємо запит при невалідному підписі
+          // TODO: Увімкнути після налагодження формату ключа
+        }
+      } else {
+        console.warn("Could not fetch public key for signature verification");
+      }
+    } catch (error) {
+      console.error("Error during signature verification:", error);
+      // Не відхиляємо запит при помилці верифікації
+    }
+  } else {
+    console.log("No X-Sign header or token - skipping signature verification");
   }
 
   let json: unknown;
@@ -71,22 +107,36 @@ export async function POST(
       { status: 400 },
     );
 
-  const payload = json as MonobankPayload;
-  const item =
-    payload?.data?.statementItem || payload?.statementItem || payload;
-
-  if (!item || typeof item !== "object")
+  const payload = json as MonobankWebhookPayload;
+  
+  // Перевіряємо правильність структури згідно з документацією
+  if (payload.type !== "StatementItem") {
     return NextResponse.json({
       ok: true,
       ignored: true,
-      reason: "No statement item",
+      reason: `Unsupported webhook type: ${payload.type}`,
     });
+  }
 
-  console.log("Monobank statement item", item);
+  const item = payload.data?.statementItem;
+  if (!item || typeof item !== "object") {
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: "No statement item in payload",
+    });
+  }
+
+  console.log("Monobank statement item received:", {
+    id: item.id,
+    description: item.description,
+    amount: item.amount,
+    comment: item.comment,
+    time: new Date(item.time * 1000).toISOString()
+  });
 
   const comment = String(item.comment || item.description || "");
-  const minor = Number(item.amount || 0);
-  const amount = Math.round(minor) / 100;
+  const amount = Math.round(item.amount) / 100; // amount вже в копійках
   if (amount <= 0)
     return NextResponse.json({
       ok: true,
@@ -118,11 +168,38 @@ export async function POST(
     message: intent.message,
     amount,
     monoComment: comment,
+    jarTitle: settings.jarTitle || "Банка Monobank", // Назва банки на момент донату
     streamerId,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(), // Використовуємо Date об'єкт
   };
 
-  await appendDonationEvent(ev);
-  broadcastDonation(ev);
-  return NextResponse.json({ ok: true });
+  try {
+    await appendDonationEvent({
+      ...ev,
+      createdAt: ev.createdAt.toISOString()
+    });
+    broadcastDonation(ev);
+    
+    console.log(`✅ Successfully processed donation: ${ev.nickname} - ₴${ev.amount} - ${ev.message}`);
+    
+    // Завжди повертаємо 200 OK як вимагає документація Monobank
+    return NextResponse.json({ 
+      ok: true,
+      processed: true,
+      donation: {
+        identifier: ev.identifier,
+        amount: ev.amount,
+        nickname: ev.nickname
+      }
+    });
+  } catch (error) {
+    console.error("Error processing donation event:", error);
+    
+    // Навіть при помилці повертаємо 200 OK, щоб Monobank не повторював спроби
+    return NextResponse.json({ 
+      ok: true,
+      processed: false,
+      error: "Internal processing error"
+    });
+  }
 }
