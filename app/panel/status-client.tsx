@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React from "react";
 import type { DonationEvent } from "@prisma/client";
 
 export interface StatusData {
@@ -20,12 +20,12 @@ interface StatusClientProps {
   initial: StatusData;
 }
 
-export function StatusClient({ initial }: StatusClientProps) {
+export function StatusClient({ initial: _initial }: StatusClientProps) {
   // Компонент тимчасово прихований - інформація про останній донат тепер в історії донатів
   return null;
 }
 
-function StatusDetails({ data }: { data: StatusData }) {
+function _StatusDetails({ data }: { data: StatusData }) {
   if (!data.event) return null; // Прибираємо "No events yet"
   
   const ev = data.event;

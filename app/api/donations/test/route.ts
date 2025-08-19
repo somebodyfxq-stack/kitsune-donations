@@ -5,7 +5,7 @@ import { appendDonationEvent, getMonobankSettings } from "@/lib/store";
 import { prisma } from "@/lib/db";
 import { broadcastDonation } from "@/lib/sse";
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!(session as any)?.user?.id) {

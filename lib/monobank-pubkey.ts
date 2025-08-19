@@ -23,7 +23,6 @@ export async function getMonobankPublicKey(token: string): Promise<string | null
       headers: {
         "X-Token": token,
       },
-      timeout: 10000,
     });
 
     if (!response.ok) {

@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     nickname,
     message,
     amount,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(),
   });
   const url = buildMonoUrl(
     jarId,

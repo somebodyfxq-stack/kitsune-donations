@@ -115,7 +115,7 @@ export async function GET(req: Request) {
       nickname,
       message: safeMessage,
       amount,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
     });
     // Respond with the payment URL.  The client will open this URL in a
     // new tab.  Include the identifier for potential debugging.

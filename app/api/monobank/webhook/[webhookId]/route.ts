@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
 import {
   appendDonationEvent,
   findIntentByIdentifier,
@@ -12,12 +11,6 @@ export const runtime = "nodejs";
 
 export function GET() {
   return NextResponse.json({ ok: true });
-}
-
-interface StatementItem {
-  comment?: string;
-  description?: string;
-  amount?: number;
 }
 
 // Правильна структура згідно з документацією Monobank
@@ -174,11 +167,11 @@ export async function POST(
   };
 
   try {
-    await appendDonationEvent({
+    await appendDonationEvent(ev);
+    broadcastDonation({
       ...ev,
       createdAt: ev.createdAt.toISOString()
     });
-    broadcastDonation(ev);
     
     console.log(`✅ Successfully processed donation: ${ev.nickname} - ₴${ev.amount} - ${ev.message}`);
     

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { StatusData } from "./status-client";
 
 // UI component for connecting a Monobank jar to the streamer account.

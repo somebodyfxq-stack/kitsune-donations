@@ -7,9 +7,9 @@ import { NextResponse, type NextRequest } from "next/server";
  * administrative or panel pages.  By checking the `role` field set in
  * authOptions.jwt() we avoid allowing stale tokens from deleted users.
  */
-function middleware(req: NextRequest) {
+function middleware(req: NextRequest & { nextauth?: { token?: any } }) {
   const { pathname } = req.nextUrl;
-  const token = req.nextauth?.token;
+  const token = (req as any).nextauth?.token;
   // If a signed in user visits the login page, send them to the
   // appropriate dashboard.  We only redirect when a valid role is
   // present to guard against deleted users retaining an empty token.

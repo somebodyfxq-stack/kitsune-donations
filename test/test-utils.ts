@@ -19,7 +19,7 @@ export async function createTestDatabase() {
     stdio: "ignore",
   });
   
-  const { prisma } = await import("../lib/db.ts");
+  const { prisma } = await import("../lib/db");
   
   // Створити тестового користувача
   await prisma.user.upsert({

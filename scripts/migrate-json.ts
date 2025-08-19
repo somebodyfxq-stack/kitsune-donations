@@ -42,6 +42,7 @@ async function main() {
         message: intent.message,
         amount: intent.amount,
         createdAt: new Date(intent.createdAt),
+        streamerId: "migration-user", // Тимчасове значення для міграції
       },
     });
   }
@@ -62,6 +63,7 @@ async function main() {
         amount: ev.amount,
         monoComment: ev.monoComment,
         createdAt: new Date(ev.createdAt),
+        streamerId: "migration-user", // Тимчасове значення для міграції
       },
     });
   }

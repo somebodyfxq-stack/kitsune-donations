@@ -23,7 +23,7 @@ export function encryptToken(token: string): string {
   const iv = crypto.randomBytes(16);
   
   // Створюємо cipher
-  const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
+  const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer as any, iv as any);
   
   // Шифруємо токен
   let encrypted = cipher.update(token, 'utf8', 'hex');
@@ -55,10 +55,10 @@ export function decryptToken(encryptedToken: string): string | null {
     const encrypted = Buffer.from(encryptedHex, 'hex');
     
     // Створюємо decipher
-    const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv);
+    const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer as any, iv as any);
     
     // Розшифровуємо
-    let decrypted = decipher.update(encrypted, null, 'utf8');
+    let decrypted = decipher.update(encrypted as any, undefined, 'utf8');
     decrypted += decipher.final('utf8');
     
     return decrypted;

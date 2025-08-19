@@ -6,7 +6,7 @@ export const prisma = globalForPrisma.prisma || new PrismaClient();
 
 function lowercaseUserName(
   params: Prisma.MiddlewareParams,
-  next: Prisma.MiddlewareNext,
+  next: any,
 ) {
   if (params.model === "User" && (params.action === "create" || params.action === "update")) {
     const name: unknown = params.args.data?.name;

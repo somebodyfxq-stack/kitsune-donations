@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 
 interface YouTubeDialogProps {
@@ -34,6 +34,10 @@ export function YouTubeDialog({ isOpen, onClose, onAdd, currentUrl }: YouTubeDia
     };
   }, [isOpen, currentUrl]);
 
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   // Закриття на Escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -49,16 +53,12 @@ export function YouTubeDialog({ isOpen, onClose, onAdd, currentUrl }: YouTubeDia
     return () => {
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   if (!mounted || !isOpen) return null;
 
   const handleAdd = () => {
     onAdd(url);
-    onClose();
-  };
-
-  const handleClose = () => {
     onClose();
   };
 

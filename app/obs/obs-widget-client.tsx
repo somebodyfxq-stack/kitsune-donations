@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface EventPayload {
   identifier: string;
@@ -33,7 +33,7 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
   const pauseCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Функція для перевірки стану паузи
-  const checkPauseState = async () => {
+  const checkPauseState = useCallback(async () => {
     try {
       const response = await fetch('/api/donations/pause');
       if (response.ok) {
@@ -44,9 +44,9 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
     } catch (error) {
       console.error("Failed to check pause state:", error);
     }
-  };
+  }, []);
 
-  function playNext() {
+  const playNext = useCallback(() => {
     console.log("🎬 playNext() called");
     console.log("📊 Current queue length:", queueRef.current.length);
     console.log("⏸️ Donations paused:", donationsPaused);
@@ -236,9 +236,9 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
     };
     
     attemptPlay();
-  }
+  }, [donationsPaused, voiceName]);
 
-  function enqueue(p: EventPayload) {
+  const enqueue = useCallback((p: EventPayload) => {
     console.log("🔄 Enqueue called with payload:", p);
     queueRef.current.push(p);
     console.log("📝 Queue length after push:", queueRef.current.length);
@@ -252,7 +252,7 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
     } else {
       console.log("⏸️ Already playing or timeout active, donation queued");
     }
-  }
+  }, [playNext]);
 
   useEffect(() => {
     try {
@@ -404,7 +404,7 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
         reconnectTimeoutRef.current = null;
       }
     };
-  }, [voiceName, streamerId]);
+  }, [voiceName, streamerId, enqueue]);
 
   // Періодично перевіряємо стан паузи та відновлюємо чергу при потребі
   useEffect(() => {
@@ -420,7 +420,7 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
         pauseCheckRef.current = null;
       }
     };
-  }, []);
+  }, [checkPauseState]);
 
   // Відновлюємо чергу коли донати розпаузені
   useEffect(() => {
@@ -429,7 +429,7 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
       console.log("▶️ Donations unpaused, resuming queue with", queueRef.current.length, "items");
       playNext();
     }
-  }, [donationsPaused]);
+  }, [donationsPaused, playNext]);
 
   return (
     <div

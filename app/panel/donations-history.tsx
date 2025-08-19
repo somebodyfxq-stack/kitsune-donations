@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import type { DonationEvent } from "@prisma/client";
 
 interface DonationWithDate extends Omit<DonationEvent, 'createdAt'> {
@@ -14,7 +14,7 @@ interface DonationsHistoryProps {
 
 export function DonationsHistory({ initial }: DonationsHistoryProps) {
   const [donations, setDonations] = useState<DonationWithDate[]>(initial);
-  const [loading, setLoading] = useState(false);
+
   const [testLoading, setTestLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [donationsPaused, setDonationsPaused] = useState(false);
@@ -108,8 +108,6 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
         throw new Error(error.error || 'Failed to delete test donations');
       }
 
-      const result = await response.json();
-      
       // Видаляємо тестові донати зі стану
       setDonations(prev => prev.filter(d => !d.identifier.startsWith('test-')));
       

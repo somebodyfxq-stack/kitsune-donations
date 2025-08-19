@@ -6,7 +6,7 @@ import type { Session } from "next-auth";
 
 export function Providers({ session, children }: ProvidersProps) {
   return (
-    <SessionProvider session={session}>
+    <SessionProvider session={session as any}>
       <NuqsAdapter>{children}</NuqsAdapter>
     </SessionProvider>
   );

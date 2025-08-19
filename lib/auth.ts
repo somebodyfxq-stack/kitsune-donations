@@ -2,9 +2,7 @@ import { getServerSession } from "next-auth/next";
 import Credentials from "next-auth/providers/credentials";
 import Twitch from "next-auth/providers/twitch";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import type { NextAuthOptions } from "next-auth";
-import type { Account, Session, User } from "next-auth";
-import type { JWT } from "next-auth/jwt";
+// Types are inferred from NextAuth
 
 import { prisma } from "@/lib/db";
 
@@ -17,7 +15,7 @@ import { prisma } from "@/lib/db";
  * token is scrubbed of its identifying fields so that subsequent requests
  * will be treated as unauthenticated.
  */
-export const authOptions: NextAuthOptions = {
+export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     // Twitch logins are used by streamers.  The client ID and secret are
@@ -51,11 +49,11 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   trustHost: true,
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt" as const },
   secret: process.env.NEXTAUTH_SECRET,
   pages: { signIn: "/login" },
   callbacks: {
-    async signIn({ user, account }: { user: User; account: Account | null }) {
+    async signIn({ user, account }: any) {
       // Assign roles based on the provider.  If a user signs in with Twitch
       // they are a streamer; if they use the credentials provider they are
       // considered an admin.  These roles are persisted on the JWT by the
@@ -64,7 +62,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "credentials") user.role = "admin";
       return true;
     },
-    async jwt({ token, user }: { token: JWT; user?: User }) {
+    async jwt({ token, user }: any) {
       // If the user just signed in, propagate their role onto the token.
       if (user?.role) token.role = user.role;
       // Determine which identifier we should look up: either the new user
@@ -105,7 +103,7 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
     },
-    async session({ session, token }: { session: Session; token: JWT }) {
+    async session({ session, token }: any) {
       // If the token does not contain a subject or role we treat the
       // request as unauthenticated by returning null.  This triggers
       // next-auth to redirect the user to the login page where
@@ -134,5 +132,5 @@ export const authOptions: NextAuthOptions = {
 
 export async function getAuthSession() {
   // Expose a helper for server components to retrieve the current session.
-  return getServerSession(authOptions) as Promise<Session | null>;
+  return getServerSession(authOptions) as Promise<any | null>;
 }

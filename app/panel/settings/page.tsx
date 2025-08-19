@@ -15,7 +15,7 @@ export default async function SettingsPage() {
     "use server";
     const jar = formData.get("jarId")?.toString().trim() ?? "";
     const token = formData.get("monobankToken")?.toString().trim() ?? "";
-    await upsertMonobankSettings(session.user.id, { jarId: jar, token });
+    await upsertMonobankSettings(session!.user.id, { jarId: jar, token });
     redirect("/panel/settings");
   }
 
