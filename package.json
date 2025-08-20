@@ -10,7 +10,11 @@
     "migrate:json": "tsx scripts/migrate-json.ts",
     "encrypt-tokens": "tsx scripts/encrypt-existing-tokens.ts",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@google-cloud/text-to-speech": "^6.2.0",
