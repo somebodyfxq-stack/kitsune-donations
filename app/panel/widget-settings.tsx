@@ -10,19 +10,54 @@ interface WidgetSettingsProps {
 export function WidgetSettings({ initial }: WidgetSettingsProps) {
   const [obsWidgetUrl, setObsWidgetUrl] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState<string>('uk-UA-Standard-A');
   const [showUrl, setShowUrl] = useState<boolean>(false);
+  
+  // YouTube налаштування
+  const [maxDurationMinutes, setMaxDurationMinutes] = useState<number>(5);
+  const [volume, setVolume] = useState<number>(50);
+  const [showClipTitle, setShowClipTitle] = useState<boolean>(true);
+  const [showDonorName, setShowDonorName] = useState<boolean>(true);
+  const [minLikes, setMinLikes] = useState<number>(0);
+  const [minViews, setMinViews] = useState<number>(0);
+  const [minComments, setMinComments] = useState<number>(0);
+  const [showImmediately, setShowImmediately] = useState<boolean>(false);
 
   // Генеруємо URL віджета тільки на клієнті для уникнення hydration помилки
   useEffect(() => {
     if (initial.obsWidgetToken && typeof window !== 'undefined') {
       // Невелика затримка для плавності
       const timer = setTimeout(() => {
-        setObsWidgetUrl(`${window.location.origin}/obs/${initial.obsWidgetToken}?voice=${selectedVoice}`);
+        setObsWidgetUrl(`${window.location.origin}/obs/${initial.obsWidgetToken}`);
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [initial.obsWidgetToken, selectedVoice]);
+  }, [initial.obsWidgetToken]);
+
+  // Завантажуємо існуючі налаштування YouTube при ініціалізації
+  useEffect(() => {
+    const loadYouTubeSettings = async () => {
+      try {
+        const response = await fetch('/api/youtube/settings');
+        if (response.ok) {
+          const data = await response.json();
+          const settings = data.settings;
+          
+          setMaxDurationMinutes(settings.maxDurationMinutes);
+          setVolume(settings.volume);
+          setShowClipTitle(settings.showClipTitle);
+          setShowDonorName(settings.showDonorName);
+          setMinLikes(settings.minLikes);
+          setMinViews(settings.minViews);
+          setMinComments(settings.minComments);
+          setShowImmediately(settings.showImmediately);
+        }
+      } catch (error) {
+        console.error('Failed to load YouTube settings:', error);
+      }
+    };
+
+    loadYouTubeSettings();
+  }, []);
 
   const handleCopyUrl = async () => {
     if (obsWidgetUrl) {
@@ -35,10 +70,6 @@ export function WidgetSettings({ initial }: WidgetSettingsProps) {
         console.error('Failed to copy URL:', error);
       }
     }
-  };
-
-  const handleVoiceChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedVoice(event.target.value);
   };
 
   const toggleUrlVisibility = () => {
@@ -82,7 +113,7 @@ export function WidgetSettings({ initial }: WidgetSettingsProps) {
           </div>
           
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-medium text-white mb-3">OBS Browser Source</h3>
+            <h3 className="text-lg font-medium text-white mb-3">Віджет сповіщень</h3>
             
             <div className="space-y-4">
               <div>
@@ -155,6 +186,62 @@ export function WidgetSettings({ initial }: WidgetSettingsProps) {
                 <ol className="text-sm text-neutral-300 space-y-1">
                   <li>1. Додайте <strong>Browser Source</strong> в OBS</li>
                   <li>2. Вставте скопійований URL</li>
+                  <li>3. Встановіть розмір: <strong>800x600</strong> (віджет 720x540)</li>
+                  <li>4. Увімкніть "Shutdown source when not visible"</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* YouTube Віджет */}
+      <div className="card p-6 md:p-8">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-medium text-white mb-3">YouTube Віджет</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  URL YouTube віджета
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={obsWidgetUrl ? `${window.location.origin}/obs/${initial.obsWidgetToken}/youtube` : 'Завантаження...'}
+                      readOnly
+                      className="w-full text-xs bg-black/30 text-red-300 p-3 rounded-lg border border-red-500/30 focus:border-red-400 focus:ring-1 focus:ring-red-400 font-mono transition-all duration-300"
+                    />
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(`${window.location.origin}/obs/${initial.obsWidgetToken}/youtube`)}
+                    disabled={!initial.obsWidgetToken}
+                    className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-200 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    title="Копіювати URL"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>
+                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-red-300 mb-2">📺 Інструкція для YouTube віджета</h4>
+                <ol className="text-sm text-neutral-300 space-y-1">
+                  <li>1. Додайте <strong>Browser Source</strong> в OBS</li>
+                  <li>2. Вставте скопійований URL</li>
                   <li>3. Встановіть розмір: <strong>1920x1080</strong></li>
                   <li>4. Увімкніть "Shutdown source when not visible"</li>
                 </ol>
@@ -164,38 +251,230 @@ export function WidgetSettings({ initial }: WidgetSettingsProps) {
         </div>
       </div>
 
-      {/* Додatkові налаштування */}
+      {/* Комбінований віджет */}
       <div className="card p-6 md:p-8">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2L2 7v10c0 5.55 3.84 9.739 9 11 5.16-1.261 9-5.45 9-11V7l-10-5z"/>
+            </svg>
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-medium text-white mb-3">🔥 Комбінований віджет (РЕКОМЕНДОВАНО)</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  URL комбінованого віджета
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={obsWidgetUrl ? `${window.location.origin}/obs/${initial.obsWidgetToken}/combined` : 'Завантаження...'}
+                      readOnly
+                      className="w-full text-xs bg-black/30 text-purple-300 p-3 rounded-lg border border-purple-500/30 focus:border-purple-400 focus:ring-1 focus:ring-purple-400 font-mono transition-all duration-300"
+                    />
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(`${window.location.origin}/obs/${initial.obsWidgetToken}/combined`)}
+                    disabled={!initial.obsWidgetToken}
+                    className="p-3 bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 text-white rounded-lg transition-all duration-200 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    title="Копіювати URL"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>
+                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-purple-500/10 to-red-500/10 border border-purple-500/20 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-purple-300 mb-2">⚡ Переваги комбінованого віджета</h4>
+                <ul className="text-sm text-neutral-300 space-y-1">
+                  <li>✅ Обробляє як звичайні донати, так і YouTube відео</li>
+                  <li>✅ Правильна логіка черг відповідно до налаштувань</li>
+                  <li>✅ Один віджет замість двох окремих</li>
+                  <li>✅ Автоматична синхронізація налаштувань</li>
+                  <li>🎯 <strong>Рекомендується використовувати замість окремих віджетів</strong></li>
+                </ul>
+              </div>
+
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-blue-300 mb-2">🔧 Інструкція для комбінованого віджета</h4>
+                <ol className="text-sm text-neutral-300 space-y-1">
+                  <li>1. Видаліть старі віджети з OBS (якщо є)</li>
+                  <li>2. Додайте <strong>Browser Source</strong> в OBS</li>
+                  <li>3. Вставте скопійований URL комбінованого віджета</li>
+                  <li>4. Встановіть розмір: <strong>1920x1080</strong></li>
+                  <li>5. Увімкніть "Shutdown source when not visible"</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Налаштування YouTube віджету */}
+      <div className="card p-6 md:p-8">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd"/>
             </svg>
           </div>
           
           <div className="flex-1">
-            <h3 className="text-lg font-medium text-white mb-3">Налаштування звуку</h3>
-            <div className="space-y-4">
+            <h3 className="text-lg font-medium text-white mb-3">Налаштування YouTube віджету</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Максимальний час відео */}
               <div>
                 <label className="block text-sm font-medium text-neutral-300 mb-2">
-                  Голос для TTS
+                  Максимальний час відео (хвилини)
                 </label>
-                <select 
-                  value={selectedVoice}
-                  onChange={handleVoiceChange}
-                  className="w-full bg-neutral-900/80 text-white p-3 rounded-lg border border-neutral-700 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 focus:outline-none transition-all duration-200 appearance-none bg-[url('data:image/svg+xml;charset=utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%23a1a1aa%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%20clip-rule%3D%22evenodd%22/%3E%3C/svg%3E')] bg-no-repeat bg-right bg-[length:20px_20px] pr-10"
-                >
-                  <option value="uk-UA-Standard-A" className="bg-neutral-900 text-white">🇺🇦 Українська (жіночий голос)</option>
-                  <option value="uk-UA-Standard-B" className="bg-neutral-900 text-white">🇺🇦 Українська (чоловічий голос)</option>
-                  <option value="en-US-Standard-C" className="bg-neutral-900 text-white">🇺🇸 English (female)</option>
-                  <option value="en-US-Standard-D" className="bg-neutral-900 text-white">🇺🇸 English (male)</option>
-                  <option value="en-GB-Standard-A" className="bg-neutral-900 text-white">🇬🇧 British English (female)</option>
-                  <option value="en-GB-Standard-B" className="bg-neutral-900 text-white">🇬🇧 British English (male)</option>
-                </select>
-                <p className="text-xs text-neutral-400 mt-1">
-                  URL віджета автоматично оновлюється при зміні голосу
-                </p>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={maxDurationMinutes}
+                  onChange={(e) => setMaxDurationMinutes(Number(e.target.value))}
+                  className="w-full bg-neutral-900/80 text-white p-3 rounded-lg border border-neutral-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none transition-all duration-200"
+                />
               </div>
+
+              {/* Гучність */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Гучність ({volume}%)
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={volume}
+                  onChange={(e) => setVolume(Number(e.target.value))}
+                  className="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer slider-thumb"
+                />
+              </div>
+
+              {/* Мінімум лайків */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Мінімум лайків
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={minLikes}
+                  onChange={(e) => setMinLikes(Number(e.target.value))}
+                  className="w-full bg-neutral-900/80 text-white p-3 rounded-lg border border-neutral-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none transition-all duration-200"
+                />
+              </div>
+
+              {/* Мінімум переглядів */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Мінімум переглядів
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={minViews}
+                  onChange={(e) => setMinViews(Number(e.target.value))}
+                  className="w-full bg-neutral-900/80 text-white p-3 rounded-lg border border-neutral-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none transition-all duration-200"
+                />
+              </div>
+
+              {/* Мінімум коментарів */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Мінімум коментарів
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={minComments}
+                  onChange={(e) => setMinComments(Number(e.target.value))}
+                  className="w-full bg-neutral-900/80 text-white p-3 rounded-lg border border-neutral-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none transition-all duration-200"
+                />
+              </div>
+
+              {/* Чекбокси */}
+              <div className="space-y-3">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showClipTitle}
+                    onChange={(e) => setShowClipTitle(e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-orange-500 rounded border-neutral-600 bg-neutral-800 focus:ring-orange-400 focus:ring-2"
+                  />
+                  <span className="text-sm text-neutral-300">Відображати назву кліпу</span>
+                </label>
+
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showDonorName}
+                    onChange={(e) => setShowDonorName(e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-orange-500 rounded border-neutral-600 bg-neutral-800 focus:ring-orange-400 focus:ring-2"
+                  />
+                  <span className="text-sm text-neutral-300">Відображати імя донатера</span>
+                </label>
+
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showImmediately}
+                    onChange={(e) => setShowImmediately(e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-orange-500 rounded border-neutral-600 bg-neutral-800 focus:ring-orange-400 focus:ring-2"
+                  />
+                  <span className="text-sm text-neutral-300">Відображати новий донат одразу</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Кнопка збереження */}
+            <div className="mt-6">
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch('/api/youtube/settings', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        maxDurationMinutes,
+                        volume,
+                        showClipTitle,
+                        showDonorName,
+                        minLikes,
+                        minViews,
+                        minComments,
+                        showImmediately
+                      })
+                    });
+
+                    if (response.ok) {
+                      console.log('✅ YouTube settings saved successfully');
+                      // TODO: Показати успішне повідомлення користувачу
+                    } else {
+                      console.error('❌ Failed to save YouTube settings');
+                      // TODO: Показати помилку користувачу
+                    }
+                  } catch (error) {
+                    console.error('❌ Error saving YouTube settings:', error);
+                    // TODO: Показати помилку користувачу
+                  }
+                }}
+                className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-all duration-200 font-medium"
+              >
+                Зберегти налаштування
+              </button>
             </div>
           </div>
         </div>

@@ -103,3 +103,51 @@ body:has(.obs-layout) {
 .animate-donation-disappear {
   animation: donation-disappear 0.4s ease-in forwards;
 }
+
+/* Magical shimmer effect for donation cards */
+@keyframes shimmer {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+  100% { transform: translateX(200%) translateY(200%) rotate(45deg); }
+}
+
+/* Flying emoji particles animation */
+@keyframes fly-around {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  25% {
+    transform: translate(200px, -100px) rotate(90deg) scale(1.2);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-150px, 200px) rotate(180deg) scale(0.8);
+    opacity: 0.9;
+  }
+  75% {
+    transform: translate(300px, 100px) rotate(270deg) scale(1.1);
+    opacity: 0.7;
+  }
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-100px, -200px) rotate(360deg) scale(1);
+    opacity: 0;
+  }
+}
+
+.animate-fly-around {
+  animation: fly-around linear infinite;
+}
+
+/* Mask to hide emoji particles behind the donation card */
+.emoji-mask {
+  clip-path: polygon(
+    0% 0%, 0% 100%, 30% 100%, 30% 20%, 70% 20%, 70% 80%, 30% 80%, 30% 100%, 100% 100%, 100% 0%
+  );
+}

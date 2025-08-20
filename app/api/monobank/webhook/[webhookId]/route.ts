@@ -162,6 +162,7 @@ export async function POST(
     amount,
     monoComment: comment,
     jarTitle: settings.jarTitle || "Банка Monobank", // Назва банки на момент донату
+    youtubeUrl: intent.youtubeUrl, // YouTube URL для віджету
     streamerId,
     createdAt: new Date(), // Використовуємо Date об'єкт
   };

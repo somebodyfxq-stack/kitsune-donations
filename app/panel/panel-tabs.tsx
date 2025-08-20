@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import { StatusClient, type StatusData } from "./status-client";
 import { WidgetSettings } from "./widget-settings";
 import { DonationsHistory } from "./donations-history";
@@ -33,7 +33,7 @@ const tabs: Tab[] = [
   },
   {
     id: 'widget',
-    label: 'Віджет сповіщень',
+    label: 'Віджети',
     icon: (
       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd"/>
@@ -54,13 +54,45 @@ const tabs: Tab[] = [
 
 export function PanelTabs({ initial, donations }: PanelTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('donations');
+  const [statusData, setStatusData] = useState<StatusData>(initial);
+  const [donationsData, setDonationsData] = useState(donations);
+
+  // Відновлюємо збережену вкладку з localStorage при завантаженні
+  useEffect(() => {
+    const savedTab = localStorage.getItem('panel-active-tab') as TabType;
+    if (savedTab && ['donations', 'widget', 'monobank'].includes(savedTab)) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  // Зберігаємо активну вкладку в localStorage при зміні
+  const handleTabChange = (tabId: TabType) => {
+    setActiveTab(tabId);
+    localStorage.setItem('panel-active-tab', tabId);
+  };
+
+  // Функція для оновлення даних без перезавантаження сторінки
+  const refreshData = async () => {
+    try {
+      const response = await fetch('/api/panel/status');
+      if (response.ok) {
+        const data = await response.json();
+        setStatusData(data.status);
+        setDonationsData(data.donations);
+      }
+    } catch (error) {
+      console.error('Помилка при оновленні даних:', error);
+      // У випадку помилки все ж таки перезавантажуємо сторінку
+      window.location.reload();
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Status always visible */}
       <div>
         <Suspense fallback={<div className="card p-6 md:p-8">Завантаження…</div>}>
-          <StatusClient initial={initial} />
+          <StatusClient initial={statusData} />
         </Suspense>
       </div>
 
@@ -70,7 +102,7 @@ export function PanelTabs({ initial, donations }: PanelTabsProps) {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
                 activeTab === tab.id
                   ? 'bg-purple-600 text-white shadow-lg'
@@ -87,16 +119,16 @@ export function PanelTabs({ initial, donations }: PanelTabsProps) {
       {/* Tab content */}
       <div className="min-h-[400px]">
         {activeTab === 'donations' && (
-          <DonationsHistory initial={donations} />
+          <DonationsHistory initial={donationsData} />
         )}
         
         {activeTab === 'widget' && (
-          <WidgetSettings initial={initial} />
+          <WidgetSettings initial={statusData} />
         )}
         
         {activeTab === 'monobank' && (
           <Suspense fallback={<div className="card p-6 md:p-8">Завантаження Monobank налаштувань...</div>}>
-            <MonobankClient initial={initial} />
+            <MonobankClient initial={statusData} onDataChange={refreshData} />
           </Suspense>
         )}
       </div>

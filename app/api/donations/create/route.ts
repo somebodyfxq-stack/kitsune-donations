@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     const nickname = (url.searchParams.get("nickname") || "").trim();
     const amountStr = url.searchParams.get("amount") || "";
     const messageRaw = url.searchParams.get("message") || "";
-    const _youtube = url.searchParams.get("youtube") || undefined;
+    const youtubeUrl = url.searchParams.get("youtube") || undefined;
     const amount = Number(amountStr);
     // Basic validation
     if (!nickname || nickname.length > 30) {
@@ -49,6 +49,17 @@ export async function GET(req: Request) {
         { error: "Сума має бути від 10 до 29999" },
         { status: 400 },
       );
+    }
+    // Валідація YouTube URL (якщо надано)
+    if (youtubeUrl) {
+      const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+      if (!youtubeRegex.test(youtubeUrl)) {
+        console.error("Invalid YouTube URL", { youtubeUrl });
+        return NextResponse.json(
+          { error: "Некоректне посилання на YouTube відео" },
+          { status: 400 },
+        );
+      }
     }
     // Sanitize message and generate a unique identifier
     const safeMessage = sanitizeMessage(messageRaw);
@@ -115,6 +126,7 @@ export async function GET(req: Request) {
       nickname,
       message: safeMessage,
       amount,
+      youtubeUrl,
       createdAt: new Date(),
     });
     // Respond with the payment URL.  The client will open this URL in a

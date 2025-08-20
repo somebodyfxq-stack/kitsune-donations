@@ -5,7 +5,7 @@ import type { DonationEvent } from "@prisma/client";
 
 interface DonationWithDate extends Omit<DonationEvent, 'createdAt'> {
   createdAt: string;
-  // jarTitle вже визначено в DonationEvent як string | null
+  // jarTitle та youtubeUrl вже визначені в DonationEvent
 }
 
 interface DonationsHistoryProps {
@@ -164,6 +164,31 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
     fetchPauseState();
   }, []);
 
+  // Функція для повторного відтворення YouTube відео
+  const handleReplayVideo = async (donationId: number) => {
+    try {
+      const response = await fetch('/api/youtube/replay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ donationId }),
+      });
+
+      if (response.ok) {
+        console.log('✅ YouTube відео додано до черги повторного відтворення');
+        // TODO: Показати успішне повідомлення користувачу
+      } else {
+        const error = await response.json();
+        console.error('❌ Failed to replay video:', error.error);
+        // TODO: Показати помилку користувачу
+      }
+    } catch (error) {
+      console.error('❌ Error replaying video:', error);
+      // TODO: Показати помилку користувачу
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Статистика */}
@@ -304,7 +329,7 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
                 : 'bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white'
             }`}
           >
-            ⚡ Великі донати 50₴+ ({donations.filter(d => d.amount >= 50).length})
+            ⚡ Великі донати 500₴+ ({donations.filter(d => d.amount >= 500).length})
           </button>
         </div>
       </div>
@@ -322,7 +347,7 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
             <p className="text-neutral-400 text-sm">
               {filter === 'all' ? 'Донати з\'являться тут після підключення банки та перших надходжень.' 
                : filter === 'recent' ? 'За останні 24 години донатів не було.'
-               : 'Великих донатів 50₴+ поки немає.'}
+               : 'Великих донатів 500₴+ поки немає.'}
             </p>
           </div>
         ) : (
@@ -339,43 +364,35 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
                     <div>
                       <div className="text-white font-medium">{donation.nickname}</div>
                       <div className="text-xs text-neutral-400">{formatDate(donation.createdAt)}</div>
+                      {donation.youtubeUrl && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <button
+                            onClick={() => window.open(donation.youtubeUrl!, '_blank')}
+                            className="flex items-center justify-center w-5 h-5 hover:bg-red-600/20 rounded transition-colors"
+                            title="Відкрити YouTube відео"
+                          >
+                            <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleReplayVideo(donation.id)}
+                            className="flex items-center justify-center w-5 h-5 hover:bg-red-600/20 rounded transition-colors"
+                            title="Повторити відтворення відео"
+                          >
+                            <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-green-400">{formatAmount(donation.amount)}</div>
-                    <div className="flex items-center justify-end gap-1 text-xs text-neutral-400">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
-                        <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd"/>
-                      </svg>
-                      mono
-                    </div>
                   </div>
                 </div>
                 <div className="text-sm text-neutral-300 mb-2">{donation.message}</div>
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
-                      <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd"/>
-                    </svg>
-                    Monobank
-                  </span>
-                  <div className="flex gap-1">
-                    <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Переглянути">
-                      <svg className="w-4 h-4 text-neutral-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
-                      </svg>
-                    </button>
-                    <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Видалити">
-                      <svg className="w-4 h-4 text-neutral-400 hover:text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd"/>
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
               </div>
             ))}
           </div>
@@ -388,7 +405,6 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
                   <th className="text-left p-3 text-sm font-medium text-neutral-300 min-w-[140px]">Нік</th>
                   <th className="text-left p-3 text-sm font-medium text-neutral-300 min-w-[300px]">Повідомлення</th>
                   <th className="text-left p-3 text-sm font-medium text-neutral-300 min-w-[120px]">Дата</th>
-                  <th className="text-left p-3 text-sm font-medium text-neutral-300 min-w-[80px]">Система</th>
                   <th className="text-right p-3 text-sm font-medium text-neutral-300 min-w-[100px]">Сума</th>
                   <th className="text-center p-3 text-sm font-medium text-neutral-300 min-w-[80px]">Дії</th>
                 </tr>
@@ -397,21 +413,34 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
                 {filteredDonations.map((donation) => (
                   <tr key={`${donation.identifier}-${donation.createdAt}`} className="hover:bg-white/5 transition-colors">
                     <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-xs font-bold text-white">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                           {donation.nickname.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <div className="text-white font-medium truncate">{donation.nickname}</div>
-                          <div className="text-xs text-neutral-400">
-                            <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full flex items-center gap-1">
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
-                                <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd"/>
-                              </svg>
-                              Monobank
-                            </span>
-                          </div>
+                          {donation.youtubeUrl && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <button
+                                onClick={() => window.open(donation.youtubeUrl!, '_blank')}
+                                className="flex items-center justify-center w-5 h-5 hover:bg-red-600/20 rounded transition-colors"
+                                title="Відкрити YouTube відео"
+                              >
+                                <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleReplayVideo(donation.id)}
+                                className="flex items-center justify-center w-5 h-5 hover:bg-red-600/20 rounded transition-colors"
+                                title="Повторити відтворення відео"
+                              >
+                                <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z"/>
+                                </svg>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -422,15 +451,6 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
                     </td>
                     <td className="p-3">
                       <div className="text-sm text-white">{formatDate(donation.createdAt)}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
-                          <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd"/>
-                        </svg>
-                        <span className="text-sm text-neutral-300">Monobank</span>
-                      </div>
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-2">

@@ -76,8 +76,8 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
     setData(next);
     playingRef.current = true;
     
-    const text = `${next.nickname} задонатив ${Math.round(next.amount)} гривень. Повідомлення: ${next.message}`;
-    const src = `/api/tts?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(text)}`;
+    const text = `${next.nickname} задонатив ${Math.round(next.amount)} гривень... ${next.message}`;
+    const src = `/api/tts?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(text)}&quality=optimal`;
     
     console.log(`🎵 Loading TTS for donation notification:`, {
       nickname: next.nickname,
@@ -89,7 +89,27 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
     });
     
     console.log("🔊 Creating Audio object with URL:", src);
-    const audio = new Audio(src);
+    const audio = new Audio();
+    audio.preload = 'auto'; // Повна попередня буферизація
+    audio.crossOrigin = 'anonymous'; // Для коректної роботи CORS
+    audio.volume = 0.01; // Починаємо з дуже тихої гучності для fade-in ефекту
+    
+    // Налаштування для кращої якості звуку та запобігання потріскуванню
+    if ('mozCurrentSampleOffset' in audio) {
+      // Firefox specific optimizations
+      (audio as any).mozAudioChannelType = 'content';
+    }
+    
+    // Додаткові налаштування для плавного відтворення
+    if ('webkitAudioContext' in window || 'AudioContext' in window) {
+      audio.preservesPitch = false; // Може зменшити артефакти
+      // Встановлюємо буферизацію для кращої стабільності
+      if ('setPlaybackRate' in audio) {
+        (audio as any).mozPreservesPitch = false;
+      }
+    }
+    
+    audio.src = src;
     
     // Таймаут безпеки - показати сповіщення через 3 секунди навіть якщо TTS не завантажиться
     const safetyTimeout = setTimeout(() => {
@@ -157,10 +177,14 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
       console.log(`Loading TTS audio from: ${src}`);
     });
     
-    audio.addEventListener("canplay", () => {
-      console.log(`✅ TTS audio ready to play - showing notification`);
+    audio.addEventListener("canplaythrough", () => {
+      console.log(`✅ TTS audio fully buffered - preparing for smooth playback`);
       clearSafetyTimeout(); // Очищаємо таймаут безпеки
-      setVisible(true); // Показуємо сповіщення тільки після завантаження TTS
+      
+      // Невелика затримка перед показом для стабілізації аудіо контексту
+      setTimeout(() => {
+        setVisible(true); // Показуємо сповіщення після стабілізації
+      }, 50);
     });
     
     // Спрощена логіка - завжди спробуємо відтворити аудіо
@@ -191,39 +215,83 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
     
     const attemptPlay = async () => {
       try {
-        // Метод 1: Спочатку відтворюємо muted, потім unmute
-        audio.muted = true;
-        audio.volume = 0.7;
+        // Активуємо AudioContext спочатку для кращої стабільності
+        try {
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContext) {
+            const audioContext = new AudioContext();
+            if (audioContext.state === 'suspended') {
+              await audioContext.resume();
+              console.log("🎛️ AudioContext активовано перед відтворенням");
+            }
+          }
+        } catch (contextErr) {
+          console.log("🎛️ AudioContext activation warning:", contextErr);
+        }
+        
+        // Почати з дуже тихої гучності для плавного fade-in
+        audio.volume = 0.01;
+        audio.muted = false;
         
         try {
+          console.log("▶️ Starting TTS playback with fade-in...");
           audioPlayPromise = audio.play();
           await audioPlayPromise;
-          console.log("✅ Muted TTS started, now unmuting...");
           
-          // Через 100ms unmute
-          setTimeout(() => {
-            audio.muted = false;
-            console.log("🔊 TTS unmuted");
-          }, 100);
+          // Плавно збільшуємо гучність протягом 200ms
+          let currentVolume = 0.01;
+          const targetVolume = 0.7;
+          const fadeSteps = 10;
+          const stepSize = (targetVolume - currentVolume) / fadeSteps;
+          const stepInterval = 20; // 20ms на крок = 200ms загалом
           
-        } catch (mutedErr) {
-          console.log("❌ Even muted audio failed:", mutedErr);
+          const fadeInterval = setInterval(() => {
+            currentVolume += stepSize;
+            if (currentVolume >= targetVolume) {
+              audio.volume = targetVolume;
+              clearInterval(fadeInterval);
+              console.log("🔊 TTS fade-in завершено");
+            } else {
+              audio.volume = currentVolume;
+            }
+          }, stepInterval);
           
-          // Метод 2: Fallback з тихим звуком
+        } catch (directPlayErr) {
+          console.log("❌ Direct play failed, trying fallback:", directPlayErr);
+          
+          // Метод fallback з тихим звуком для активації
           const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
           silentAudio.volume = 0;
           try {
             await silentAudio.play();
             console.log("🔇 Silent audio activation successful");
             
-            // Тепер спробуємо TTS знову
-            audio.muted = false;
+            // Затримка для стабілізації перед спробою TTS
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Спробуємо TTS знову з fade-in
+            audio.volume = 0.01;
             audioPlayPromise = audio.play();
             await audioPlayPromise;
-            console.log("✅ TTS audio play after silent activation");
+            
+            // Плавний fade-in після fallback
+            setTimeout(() => {
+              let vol = 0.01;
+              const fadeUp = setInterval(() => {
+                vol += 0.07;
+                if (vol >= 0.7) {
+                  audio.volume = 0.7;
+                  clearInterval(fadeUp);
+                } else {
+                  audio.volume = vol;
+                }
+              }, 20);
+            }, 50);
+            
+            console.log("✅ TTS audio play after silent activation with fade-in");
           } catch (silentErr) {
-            console.log("🔇 Silent audio activation failed:", silentErr);
-            // Все одно показуємо сповіщення
+            console.log("🔇 All audio activation methods failed:", silentErr);
+            // Показуємо сповіщення без звуку
             setTimeout(finish, displayDuration);
           }
         }
@@ -235,7 +303,10 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
       }
     };
     
-    attemptPlay();
+    // Невелика затримка для стабілізації аудіо об'єкту після налаштування всіх listeners
+    setTimeout(() => {
+      attemptPlay();
+    }, 150);
   }, [donationsPaused, voiceName]);
 
   const enqueue = useCallback((p: EventPayload) => {
@@ -388,6 +459,12 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
           console.error("❌ Failed to handle donation event", err);
         }
       });
+
+      // Не обробляємо YouTube події в звичайному віджеті
+      es.addEventListener("youtube-video", (ev) => {
+        console.log("🎬 YouTube video event received in donation widget - ignoring");
+        // YouTube відео обробляються окремо у YouTube віджеті
+      });
     }
     connect();
 
@@ -497,7 +574,7 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
             onClick={async () => {
               console.log("🧪 Testing TTS directly...");
               try {
-                const testAudio = new Audio("/api/tts?text=тест&voice=uk-UA-Standard-A");
+                const testAudio = new Audio("/api/tts?text=тест%20LINEAR16%2048kHz&voice=uk-UA-Standard-A&quality=optimal");
                 testAudio.volume = 0.5;
                 
                 testAudio.addEventListener("loadstart", () => console.log("🔄 Test audio loading..."));
@@ -531,23 +608,37 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
           <div>Show Audio Prompt: {showAudioPrompt ? "Yes" : "No"}</div>
           
           <div className="mt-2 space-y-1">
-            <button
-              onClick={() => {
-                console.log("🧪 Manual TTS test from debug panel");
-                const testAudio = new Audio("/api/tts?text=тест%20з%20дебаг%20панелі&voice=uk-UA-Standard-A");
-                testAudio.volume = 0.7;
-                testAudio.addEventListener("loadstart", () => console.log("🔄 Test loading..."));
-                testAudio.addEventListener("canplay", () => console.log("▶️ Test can play"));
-                testAudio.addEventListener("play", () => console.log("🎵 Test playing"));
-                testAudio.addEventListener("error", (e) => console.error("❌ Test error:", e));
-                testAudio.play()
-                  .then(() => console.log("✅ Manual TTS test successful"))
-                  .catch(err => console.error("❌ Manual TTS test failed:", err));
-              }}
-              className="block w-full bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded text-xs"
-            >
-              🧪 Manual TTS Test
-            </button>
+            <div className="text-xs text-gray-300 mb-1">🎵 TTS Quality Tests (LINEAR16 48kHz):</div>
+            
+            {["optimal", "high", "fast"].map((quality) => (
+              <button
+                key={quality}
+                onClick={() => {
+                  console.log(`🧪 Testing TTS quality: ${quality}`);
+                  const qualityText = quality === "optimal" ? "оптимальна LINEAR16 48kHz" : 
+                                    quality === "high" ? "максимальна LINEAR16 48kHz" : 
+                                    "швидка MP3 16kHz";
+                  const testAudio = new Audio(`/api/tts?text=${encodeURIComponent(`Тест ${qualityText} звуку`)}&voice=uk-UA-Standard-A&quality=${quality}`);
+                  testAudio.volume = 0.7;
+                  testAudio.addEventListener("loadstart", () => console.log(`🔄 ${quality} loading...`));
+                  testAudio.addEventListener("canplay", () => console.log(`▶️ ${quality} can play`));
+                  testAudio.addEventListener("play", () => console.log(`🎵 ${quality} playing`));
+                  testAudio.addEventListener("error", (e) => console.error(`❌ ${quality} error:`, e));
+                  testAudio.play()
+                    .then(() => console.log(`✅ ${quality} TTS test successful`))
+                    .catch(err => console.error(`❌ ${quality} TTS test failed:`, err));
+                }}
+                className={`block w-full px-2 py-1 rounded text-xs mb-1 ${
+                  quality === "optimal" ? "bg-green-600 hover:bg-green-700" :
+                  quality === "high" ? "bg-blue-600 hover:bg-blue-700" :
+                  "bg-orange-600 hover:bg-orange-700"
+                }`}
+              >
+                {quality === "optimal" && "🎯 Optimal (LINEAR16 48kHz)"}
+                {quality === "high" && "🏆 High (LINEAR16 48kHz)"}
+                {quality === "fast" && "⚡ Fast (MP3 16kHz)"}
+              </button>
+            ))}
             
             <button
               onClick={() => {
@@ -570,23 +661,36 @@ export function ObsWidgetClient({ streamerId }: ObsWidgetClientProps = {}) {
         </div>
       )}
 
+      {/* Базове донатне сповіщення - GitHub Repository State */}
       {visible && data && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-donation-appear">
-          <div
-            className="min-w-[720px] rounded-3xl bg-white/80 px-12 py-8 text-neutral-900 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl"
-            style={{ 
-              WebkitBackdropFilter: "blur(16px)",
-              transform: "scale(2.0)",
-              transformOrigin: "center"
-            }}
-          >
-            <div className="mb-2 text-sm opacity-70">Дякуємо за підтримку!</div>
-            <div className="text-2xl font-bold">{data.nickname}</div>
-            <div className="mt-2 text-xl">₴ {Math.round(data.amount)}</div>
-            <div className="mt-4 text-sm">{data.message}</div>
+        <div className="fixed inset-0 flex items-center justify-center z-20">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
+            
+            {/* Нікнейм */}
+            <div className="text-center mb-4">
+              <h3 className="text-2xl font-bold text-gray-800">
+                {data.nickname}
+              </h3>
+            </div>
+
+            {/* Повідомлення */}
+            <div className="text-center mb-6">
+              <p className="text-gray-600 text-lg leading-relaxed">
+                {data.message.length > 200 ? data.message.substring(0, 200) + '...' : data.message}
+              </p>
+            </div>
+
+            {/* Сума */}
+            <div className="text-center">
+              <div className="text-4xl font-bold text-green-600">
+                {Math.round(data.amount)}₴
+              </div>
+            </div>
+            
           </div>
         </div>
       )}
+
     </div>
   );
 }

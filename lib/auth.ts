@@ -54,22 +54,50 @@ export const authOptions = {
   pages: { signIn: "/login" },
   callbacks: {
     async signIn({ user, account }: any) {
+      console.log("🔐 SignIn callback:", {
+        provider: account?.provider,
+        userId: user?.id,
+        userName: user?.name,
+        userEmail: user?.email
+      });
+      
       // Assign roles based on the provider.  If a user signs in with Twitch
       // they are a streamer; if they use the credentials provider they are
       // considered an admin.  These roles are persisted on the JWT by the
       // `jwt` callback below.
       if (account?.provider === "twitch") user.role = "streamer";
       if (account?.provider === "credentials") user.role = "admin";
+      
+      console.log("✅ SignIn success, assigned role:", user.role);
       return true;
     },
-    async jwt({ token, user }: any) {
+    async jwt({ token, user, trigger }: any) {
+      console.log("🎟️ JWT callback:", {
+        trigger,
+        userId: user?.id,
+        userRole: user?.role,
+        tokenSub: token.sub,
+        tokenRole: token.role
+      });
+      
       // If the user just signed in, propagate their role onto the token.
       if (user?.role) token.role = user.role;
+      
+      // For new sign-ins, allow the token to proceed without validation
+      // to prevent race conditions with PrismaAdapter user creation
+      if (trigger === "signIn" && user) {
+        console.log("🆕 New sign-in detected, skipping validation");
+        token.sub = user.id;
+        token.role = user.role;
+        return token;
+      }
+      
       // Determine which identifier we should look up: either the new user
       // object's id or the existing token's subject.  The `sub` property
       // identifies the user record associated with the token.
       const userId = (user as any)?.id ?? (token.sub as string | undefined);
       if (!userId) return token;
+      
       try {
         // Look up the current user in the database.  If the record is
         // missing the token is scrubbed of identifying fields.  This
@@ -81,11 +109,10 @@ export const authOptions = {
           select: { id: true, role: true },
         });
         if (!dbUser) {
-          // Remove subject and role so that downstream middleware treats the
-          // request as unauthenticated.  We deliberately avoid returning
-          // `null` here because next-auth will still serialise an empty object
-          // into a cookie; instead, the absence of these fields is used by
-          // `middleware.ts` to reject the request.
+          // For subsequent token validations (not initial sign-in), 
+          // remove subject and role so that downstream middleware treats the
+          // request as unauthenticated. This prevents deleted users from
+          // continuing to access protected resources with stale tokens.
           delete token.sub;
           delete token.role;
           return token;
@@ -104,21 +131,37 @@ export const authOptions = {
       }
     },
     async session({ session, token }: any) {
+      console.log("👤 Session callback:", {
+        tokenSub: token.sub,
+        tokenRole: token.role,
+        sessionUser: session.user?.email || session.user?.name
+      });
+      
       // If the token does not contain a subject or role we treat the
       // request as unauthenticated by returning null.  This triggers
       // next-auth to redirect the user to the login page where
       // appropriate.
-      if (!token.sub || !token.role) return null;
+      if (!token.sub || !token.role) {
+        console.log("❌ Session rejected: missing token.sub or token.role");
+        return null;
+      }
       // Ensure the user exists in the database before returning a session.
       const dbUser = await prisma.user.findUnique({
         where: { id: token.sub as string },
         select: { id: true },
       });
-      if (!dbUser) return null;
+      
+      if (!dbUser) {
+        console.log("❌ Session rejected: user not found in database");
+        return null;
+      }
+      
       if (session.user) {
         session.user.id = token.sub as string;
         session.user.role = token.role as string;
       }
+      
+      console.log("✅ Session created successfully");
       return session;
     },
     async redirect() {

@@ -28,13 +28,51 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const text = searchParams.get("text") ?? "";
     const voice = searchParams.get("voice") ?? "uk-UA-Standard-A";
+    const quality = searchParams.get("quality") ?? "optimal"; // optimal, high, fast
     
     if (!text) {
       console.warn("TTS: Missing text parameter");
       return new Response("Missing text", { status: 400 });
     }
 
-    console.log(`TTS: Synthesizing text (${text.length} chars) with voice: ${voice}`);
+    console.log(`TTS: Synthesizing text (${text.length} chars) with voice: ${voice}, quality: ${quality}`);
+    
+    // Конфігурації якості на основі best practices
+    const getAudioConfig = (quality: string) => {
+      switch (quality) {
+        case "high": // Максимальна якість (LINEAR16 як FLAC-еквівалент)
+          return {
+            audioEncoding: "LINEAR16" as const,
+            speakingRate: 0.95,
+            pitch: 0.0,
+            sampleRateHertz: 48000, // 48kHz для найвищої якості
+            volumeGainDb: -1.0,
+            effectsProfileId: ["headphone-class-device"]
+          };
+          
+        case "fast": // Швидко та мало місця (MP3)
+          return {
+            audioEncoding: "MP3" as const,
+            speakingRate: 1.0,
+            pitch: 0.0,
+            sampleRateHertz: 16000, // 16kHz для швидкості
+            volumeGainDb: -2.0,
+            effectsProfileId: ["telephony-class-application"]
+          };
+          
+        default: // "optimal" - тепер використовуємо LINEAR16 для кращої якості
+          return {
+            audioEncoding: "LINEAR16" as const,
+            speakingRate: 0.98,
+            pitch: 0.0,
+            sampleRateHertz: 48000, // 48kHz для найвищої якості
+            volumeGainDb: -1.5,
+            effectsProfileId: ["headphone-class-device"]
+          };
+      }
+    };
+    
+    const audioConfig = getAudioConfig(quality);
     
     const [res] = await client.synthesizeSpeech({
       input: { text },
@@ -42,20 +80,30 @@ export async function GET(req: Request) {
         languageCode: voice.split("-").slice(0, 2).join("-"),
         name: voice,
       },
-      audioConfig: { 
-        audioEncoding: "MP3",
-        speakingRate: 1.0, // Нормальна швидкість
-        pitch: 0.0, // Нормальна висота тону
-      },
+      audioConfig,
     });
     
     const audio = res.audioContent ?? new Uint8Array();
     console.log(`TTS: Successfully generated ${audio.length} bytes of audio`);
     
-    return new Response(Buffer.from(audio), {
+    // Встановлюємо правильний Content-Type залежно від формату
+    const getContentType = (encoding: string) => {
+      switch (encoding) {
+        case "LINEAR16": return "audio/wav";
+        case "MP3": return "audio/mpeg";
+        case "OGG_OPUS": return "audio/ogg; codecs=opus";
+        case "FLAC": return "audio/flac";
+        default: return "audio/wav"; // За замовчуванням тепер LINEAR16 (WAV)
+      }
+    };
+    
+    const contentType = getContentType(audioConfig.audioEncoding);
+    
+    return new Response(audio, {
       headers: { 
-        "Content-Type": "audio/mpeg",
+        "Content-Type": contentType,
         "Cache-Control": "public, max-age=3600", // Кешуємо на 1 годину
+        "Accept-Ranges": "bytes", // Підтримка часткового завантаження
       },
     });
   } catch (err: any) {

@@ -18,9 +18,10 @@ interface Jar {
 
 interface MonobankClientProps {
   initial: StatusData;
+  onDataChange?: () => Promise<void>;
 }
 
-export function MonobankClient({ initial }: MonobankClientProps) {
+export function MonobankClient({ initial, onDataChange }: MonobankClientProps) {
   const [expanded, setExpanded] = useState(false);
   const [token, setToken] = useState("");
   const [jars, setJars] = useState<Jar[]>([]);
@@ -102,8 +103,21 @@ export function MonobankClient({ initial }: MonobankClientProps) {
         setIsConnected(true);
         setConnectedJarTitle(jarTitle);
         setConnectedJarGoal(jarGoal);
-        setMessage(`✅ ${jarTitle} успішно підключена! Тепер ви можете приймати донати.`);
+        setMessage(`✅ ${jarTitle} успішно підключена! Оновлення даних...`);
         setExpanded(false); // Згорнути форму після успішного підключення
+        
+        // Оновлюємо дані без перезавантаження сторінки
+        if (onDataChange) {
+          setTimeout(async () => {
+            await onDataChange();
+            setMessage(`✅ ${jarTitle} успішно підключена! Тепер ви можете приймати донати.`);
+          }, 500);
+        } else {
+          // Fallback до перезавантаження, якщо onDataChange не передано
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
       }
     } catch (err) {
       setMessage((err as Error).message);

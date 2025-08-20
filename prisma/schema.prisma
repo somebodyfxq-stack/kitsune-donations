@@ -13,6 +13,7 @@ model DonationIntent {
   nickname   String
   message    String
   amount     Int
+  youtubeUrl String?         // YouTube URL для віджету
   createdAt  DateTime        @default(now())
   streamerId String
   streamer   User            @relation(fields: [streamerId], references: [id], onDelete: Cascade)
@@ -30,6 +31,7 @@ model DonationEvent {
   amount      Int
   monoComment String
   jarTitle    String?         // Назва банки на момент донату
+  youtubeUrl  String?         // YouTube URL для віджету
   createdAt   DateTime        @default(now())
   intent      DonationIntent? @relation("IntentEvents", fields: [identifier], references: [identifier])
   streamerId  String
@@ -56,6 +58,7 @@ model User {
   accounts         Account[]
   sessions         Session[]
   monobankSettings MonobankSettings?
+  youtubeSettings  YouTubeSettings?
   donationIntents  DonationIntent[]
   donationEvents   DonationEvent[]
 }
@@ -98,4 +101,17 @@ model MonobankSettings {
   obsWidgetToken  String? @unique // Унікальний токен для OBS віджета
   donationsPaused Boolean @default(false) // Чи призупинені донати для цього користувача
   user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model YouTubeSettings {
+  userId               String  @id
+  maxDurationMinutes   Int     @default(5)       // Максимальний час відео (у хвилинах)
+  volume               Int     @default(50)      // Гучність 0-100
+  showClipTitle        Boolean @default(true)    // Відображати назву кліпу
+  showDonorName        Boolean @default(true)    // Відображати імя донатера
+  minLikes             Int     @default(0)       // Мінімум лайків
+  minViews             Int     @default(0)       // Мінімум переглядів
+  minComments          Int     @default(0)       // Мінімум коментарів
+  showImmediately      Boolean @default(false)   // Відображати новий донат одразу
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
