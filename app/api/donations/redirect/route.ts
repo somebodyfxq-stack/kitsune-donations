@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
     nickname,
     message,
     amount,
+    youtubeUrl: null,
     createdAt: new Date(),
   });
   const url = buildMonoUrl(

@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     const nickname = (url.searchParams.get("nickname") || "").trim();
     const amountStr = url.searchParams.get("amount") || "";
     const messageRaw = url.searchParams.get("message") || "";
-    const youtubeUrl = url.searchParams.get("youtube") || undefined;
+    const youtubeUrl = url.searchParams.get("youtube") || null;
     const amount = Number(amountStr);
     // Basic validation
     if (!nickname || nickname.length > 30) {

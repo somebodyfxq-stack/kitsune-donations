@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       amount: donation.amount,
       monoComment: donation.monoComment,
       youtubeUrl: donation.youtubeUrl,
-      jarTitle: donation.jarTitle,
+      jarTitle: donation.jarTitle ?? undefined,
       createdAt: new Date().toISOString(), // Поточний час для нового показу
       streamerId: userId
     };

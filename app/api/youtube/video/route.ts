@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/auth";
-import { addDonationEvent } from "@/lib/store";
+import { appendDonationEvent } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,17 +22,19 @@ export async function POST(request: NextRequest) {
     // TODO: Перевірити доступність відео через YouTube Data API
 
     // Створюємо подію донату з YouTube відео
-    const donationId = await addDonationEvent({
+    await appendDonationEvent({
       streamerId,
       nickname,
       message,
       amount,
-      videoUrl,
-      type: 'youtube-video'
+      youtubeUrl: videoUrl,
+      identifier: `youtube-${Date.now()}`,
+      monoComment: `YouTube video: ${message}`,
+      jarTitle: null,
+      createdAt: new Date(),
     });
 
     console.log("YouTube video donation created:", {
-      donationId,
       streamerId,
       nickname,
       amount,
@@ -41,7 +43,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      donationId,
       message: "YouTube відео додано до черги!" 
     });
 
