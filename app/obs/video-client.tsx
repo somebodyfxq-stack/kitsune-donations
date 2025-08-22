@@ -151,16 +151,16 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
       // 🎯 Видаляємо iframe налаштування - не потрібні для player_api
     }
 
-    // 🎯 Перевірити чи скрипт уже завантажений (donatello.to style)
-    const existingScript = document.querySelector('script[src="https://www.youtube.com/player_api"]');
+    // ✅ Перевірити чи скрипт уже завантажений (стандартний IFrame API)
+    const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
     
     if (window.YT?.Player) {
       createPlayer();
     } else if (!existingScript) {
-      // 🎯 Зберегти попередній callback (donatello.to style)
-      const originalCallback = window.onYouTubePlayerAPIReady;
+      // ✅ Зберегти попередній callback (стандартний IFrame API)
+      const originalCallback = window.onYouTubeIframeAPIReady;
       
-      window.onYouTubePlayerAPIReady = () => {
+      window.onYouTubeIframeAPIReady = () => {
         createPlayer();
         // Викликати попередній callback якщо він був
         if (originalCallback && typeof originalCallback === 'function') {
@@ -168,10 +168,10 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
         }
       };
       
-      // 🎯 Використовуємо player_api як donatello.to
+      // ✅ Використовуємо стандартний IFrame API
       const script = document.createElement("script");
-      script.src = "https://www.youtube.com/player_api";
-      script.id = "youtube-player-api";
+      script.src = "https://www.youtube.com/iframe_api";
+      script.id = "youtube-iframe-api";
       
       // 🎯 Додаємо до першого script тега як donatello.to
       const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -227,7 +227,7 @@ declare global {
       ) => YTPlayer;
       PlayerState: { ENDED: number };
     };
-    // 🎯 Використовуємо правильний callback для player_api
-    onYouTubePlayerAPIReady?: () => void;
+    // ✅ Використовуємо стандартний IFrame API callback
+    onYouTubeIframeAPIReady?: () => void;
   }
 }

@@ -123,7 +123,7 @@ export function YouTubeWidgetClient({
     }
     
     // Check if script exists
-    const scriptExists = document.querySelector('script[src*="youtube.com/player_api"]');
+    const scriptExists = document.querySelector('script[src*="youtube.com/iframe_api"]');
     if (scriptExists) {
       log("YouTube API script exists, waiting...");
       const checkApi = setInterval(() => {
@@ -139,7 +139,7 @@ export function YouTubeWidgetClient({
     
     // Load the script
     const script = document.createElement('script');
-    script.src = 'https://www.youtube.com/player_api';
+    script.src = 'https://www.youtube.com/iframe_api';
     script.async = true;
     
     const firstScript = document.getElementsByTagName('script')[0];
@@ -149,10 +149,10 @@ export function YouTubeWidgetClient({
       document.head.appendChild(script);
     }
     
-    // 🎯 Використовуємо callback як donatello.to
-    const originalCallback = (window as any).onYouTubePlayerAPIReady;
-    (window as any).onYouTubePlayerAPIReady = () => {
-      log("🎬 YouTube Player API ready (donatello.to style)");
+    // ✅ Використовуємо стандартний IFrame API callback 
+    const originalCallback = (window as any).onYouTubeIframeAPIReady;
+    (window as any).onYouTubeIframeAPIReady = () => {
+      log("🎬 YouTube IFrame API ready");
       setYoutubeApiReady(true);
       
       if (originalCallback && typeof originalCallback === 'function') {
@@ -162,8 +162,8 @@ export function YouTubeWidgetClient({
 
     return () => {
       // Cleanup callback
-      if ((window as any).onYouTubePlayerAPIReady) {
-        delete (window as any).onYouTubePlayerAPIReady;
+      if ((window as any).onYouTubeIframeAPIReady) {
+        delete (window as any).onYouTubeIframeAPIReady;
       }
     };
   }, [log]);
@@ -252,9 +252,10 @@ export function YouTubeWidgetClient({
         width: '720',
         videoId: videoId,
         playerVars: {
-          'autoplay': 1,
-          'controls': 1, // 🎯 Завжди показуємо controls як donatello.to
-          'start': 0
+          'autoplay': 1, // ✅ Точно як donatello.to
+          'controls': 1, // ✅ Точно як donatello.to  
+          'start': 0,    // ✅ Точно як donatello.to
+          'origin': window.location.origin // 🔍 Додаємо origin для кращої сумісності
         },
           events: {
                       onReady: (event: any) => {
