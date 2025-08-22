@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense, lazy } from "react";
+import { customFetch } from "@/lib/fetch";
 import { StatusClient, type StatusData } from "./status-client";
 import { WidgetSettings } from "./widget-settings";
 import { DonationsHistory } from "./donations-history";
@@ -74,7 +75,7 @@ export function PanelTabs({ initial, donations }: PanelTabsProps) {
   // Функція для оновлення даних без перезавантаження сторінки
   const refreshData = async () => {
     try {
-      const response = await fetch('/api/panel/status');
+      const response = await customFetch('/api/panel/status');
       if (response.ok) {
         const data = await response.json();
         setStatusData(data.status);

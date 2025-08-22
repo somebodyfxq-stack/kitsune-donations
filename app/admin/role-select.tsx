@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { customFetch } from "@/lib/fetch";
 
 interface RoleSelectProps {
   userId: string;
@@ -23,7 +24,7 @@ export function RoleSelect({ userId, initialRole }: RoleSelectProps) {
     setRole(nextRole);
     startTransition(async () => {
       try {
-        const response = await fetch(`/api/users/${userId}/role`, {
+        const response = await customFetch(`/api/users/${userId}/role`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ role: nextRole }),

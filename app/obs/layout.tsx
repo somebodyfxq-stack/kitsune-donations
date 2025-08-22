@@ -6,8 +6,14 @@ interface LayoutProps {
 
 export default function OBSLayout({ children }: LayoutProps) {
   return (
-    <div className="obs-layout" style={{ background: "transparent", minHeight: "100vh" }}>
-      {children}
-    </div>
+    <>
+      {/* Чистий віджет без жодних UI елементів */}
+      <div 
+        className="w-full h-screen bg-transparent overflow-hidden m-0 p-0"
+        suppressHydrationWarning={true}
+      >
+        {children}
+      </div>
+    </>
   );
 }

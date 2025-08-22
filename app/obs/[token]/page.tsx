@@ -7,7 +7,7 @@ const ObsWidgetClient = lazy(() => import("../obs-widget-client").then(m => ({ d
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const fetchCache = "force-no-store";
+
 
 interface ObsWidgetPageProps {
   params: { token: string };
@@ -23,9 +23,7 @@ export default async function ObsWidgetPage({ params }: ObsWidgetPageProps) {
 
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-white">Завантаження віджета...</div>}>
-      <ObsWidgetClient streamerId={streamerId} />
+      <ObsWidgetClient streamerId={streamerId} token={params.token} />
     </Suspense>
   );
 }
-
-

@@ -10,6 +10,7 @@ import { NextResponse, type NextRequest } from "next/server";
 function middleware(req: NextRequest & { nextauth?: { token?: any } }) {
   const { pathname } = req.nextUrl;
   const token = (req as any).nextauth?.token;
+  
   // If a signed in user visits the login page, send them to the
   // appropriate dashboard.  We only redirect when a valid role is
   // present to guard against deleted users retaining an empty token.
@@ -22,7 +23,16 @@ function middleware(req: NextRequest & { nextauth?: { token?: any } }) {
       return NextResponse.redirect(new URL("/panel", req.url));
     }
   }
-  return NextResponse.next();
+  
+  // Create response with tunnel bypass headers
+  const response = NextResponse.next();
+  
+  // Add headers to bypass tunnel warning pages
+  response.headers.set('ngrok-skip-browser-warning', 'true'); // For ngrok
+  response.headers.set('bypass-tunnel-reminder', 'true'); // For localtunnel
+  response.headers.set('User-Agent', 'kitsune-donations-app');
+  
+  return response;
 }
 
 export default withAuth(middleware, {

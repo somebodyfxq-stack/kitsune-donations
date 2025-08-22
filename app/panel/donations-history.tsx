@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import { customFetch } from "@/lib/fetch";
 import type { DonationEvent } from "@prisma/client";
 
 interface DonationWithDate extends Omit<DonationEvent, 'createdAt'> {
   createdAt: string;
-  // jarTitle та youtubeUrl вже визначені в DonationEvent
+  youtubeUrl?: string | null;
+  // jarTitle вже визначений в DonationEvent
 }
 
 interface DonationsHistoryProps {
@@ -62,7 +64,7 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
   const handleCreateTestDonation = async () => {
     setTestLoading(true);
     try {
-      const response = await fetch('/api/donations/test', {
+      const response = await customFetch('/api/donations/test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -96,7 +98,7 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
 
     setDeleteLoading(true);
     try {
-      const response = await fetch('/api/donations/test-delete', {
+      const response = await customFetch('/api/donations/test-delete', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -122,7 +124,7 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
   // Функція для отримання стану паузи
   const fetchPauseState = async () => {
     try {
-      const response = await fetch('/api/donations/pause');
+      const response = await customFetch('/api/donations/pause');
       if (response.ok) {
         const data = await response.json();
         setDonationsPaused(data.paused);
@@ -136,7 +138,7 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
   const togglePause = async () => {
     setPauseLoading(true);
     try {
-      const response = await fetch('/api/donations/pause', {
+      const response = await customFetch('/api/donations/pause', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +169,7 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
   // Функція для повторного відтворення YouTube відео
   const handleReplayVideo = async (donationId: number) => {
     try {
-      const response = await fetch('/api/youtube/replay', {
+      const response = await customFetch('/api/youtube/replay', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

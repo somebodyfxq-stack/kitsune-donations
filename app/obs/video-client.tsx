@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createEventSource } from "@/lib/fetch";
 import { Button } from "@/components/ui/button";
 
 interface VideoPayload {
@@ -36,7 +37,7 @@ export function VideoClient() {
     let es: EventSource;
     function connect() {
       setConnection({ status: "connecting" });
-      es = new EventSource("/api/video-stream?ts=" + Date.now());
+      es = createEventSource("/api/video-stream?ts=" + Date.now());
       es.addEventListener("open", () => setConnection({ status: "connected" }));
       es.addEventListener("error", () => {
         setConnection({ status: "error" });
@@ -137,26 +138,29 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
     
     function createPlayer() {
       if (!containerRef.current) return;
+      // 🎯 Створюємо плеєр як donatello.to
       playerRef.current = new window.YT.Player(containerRef.current, {
         videoId,
-        playerVars: { autoplay: 1, controls: 0, rel: 0 },
+        playerVars: { 
+          'autoplay': 1, 
+          'controls': 1, // 🎯 Показуємо controls як donatello.to
+          'start': 0 
+        },
         events: { onStateChange: handleState },
       });
-      const iframe = playerRef.current.getIframe();
-      iframe.setAttribute("loading", "lazy");
-      iframe.setAttribute("title", "Donation video player");
+      // 🎯 Видаляємо iframe налаштування - не потрібні для player_api
     }
 
-    // Перевірити чи скрипт уже завантажений
-    const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+    // 🎯 Перевірити чи скрипт уже завантажений (donatello.to style)
+    const existingScript = document.querySelector('script[src="https://www.youtube.com/player_api"]');
     
     if (window.YT?.Player) {
       createPlayer();
     } else if (!existingScript) {
-      // Зберегти попередній callback
-      const originalCallback = window.onYouTubeIframeAPIReady;
+      // 🎯 Зберегти попередній callback (donatello.to style)
+      const originalCallback = window.onYouTubePlayerAPIReady;
       
-      window.onYouTubeIframeAPIReady = () => {
+      window.onYouTubePlayerAPIReady = () => {
         createPlayer();
         // Викликати попередній callback якщо він був
         if (originalCallback && typeof originalCallback === 'function') {
@@ -164,10 +168,18 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
         }
       };
       
+      // 🎯 Використовуємо player_api як donatello.to
       const script = document.createElement("script");
-      script.src = "https://www.youtube.com/iframe_api";
-      script.id = "youtube-iframe-api";
-      document.body.appendChild(script);
+      script.src = "https://www.youtube.com/player_api";
+      script.id = "youtube-player-api";
+      
+      // 🎯 Додаємо до першого script тега як donatello.to
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      if (firstScriptTag && firstScriptTag.parentNode) {
+        firstScriptTag.parentNode.insertBefore(script, firstScriptTag);
+      } else {
+        document.head.appendChild(script);
+      }
     } else {
       // Скрипт завантажується, просто дочекаємося
       const checkYT = setInterval(() => {
@@ -199,7 +211,7 @@ function VideoPlayer({ videoId, onEnd }: VideoPlayerProps) {
 interface YTPlayer {
   loadVideoById(id: string): void;
   destroy(): void;
-  getIframe(): HTMLIFrameElement;
+  // 🎯 Видаляємо getIframe() - не потрібно для player_api
 }
 
 declare global {
@@ -215,6 +227,7 @@ declare global {
       ) => YTPlayer;
       PlayerState: { ENDED: number };
     };
-    onYouTubeIframeAPIReady?: () => void;
+    // 🎯 Використовуємо правильний callback для player_api
+    onYouTubePlayerAPIReady?: () => void;
   }
 }

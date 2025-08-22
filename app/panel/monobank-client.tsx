@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { customFetch } from "@/lib/fetch";
 import { StatusData } from "./status-client";
 
 // UI component for connecting a Monobank jar to the streamer account.
@@ -42,7 +43,7 @@ export function MonobankClient({ initial, onDataChange }: MonobankClientProps) {
     try {
       // Request the list of jars from the server.  The server will talk
       // directly to the Monobank API.
-      const jarsRes = await fetch("/api/monobank/jars", {
+      const jarsRes = await customFetch("/api/monobank/jars", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
@@ -59,7 +60,7 @@ export function MonobankClient({ initial, onDataChange }: MonobankClientProps) {
       // Persist the token so that subsequent operations (e.g. webhook
       // configuration) can use it.  Errors here are non‑fatal: we can
       // still proceed to select a jar even if the token isn’t stored.
-      await fetch("/api/monobank/save-token", {
+      await customFetch("/api/monobank/save-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
@@ -82,7 +83,7 @@ export function MonobankClient({ initial, onDataChange }: MonobankClientProps) {
       // Знаходимо дані обраної банки
       const selectedJarData = jars.find(jar => jar.id === selectedJar);
       
-      const res = await fetch("/api/monobank/connect-jar", {
+      const res = await customFetch("/api/monobank/connect-jar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 

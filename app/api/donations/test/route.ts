@@ -138,7 +138,9 @@ export async function POST(_request: NextRequest) {
     
     console.log('📺 Broadcasting test donation with YouTube:', {
       ...ssePayload,
-      eventType: randomYouTubeUrl ? 'youtube-video' : 'donation'
+      eventType: randomYouTubeUrl ? 'youtube-video' : 'donation',
+      hasYouTubeUrl: !!randomYouTubeUrl,
+      youtubeUrl: randomYouTubeUrl
     });
     broadcastDonation(ssePayload);
 

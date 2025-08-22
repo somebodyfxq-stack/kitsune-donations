@@ -27,7 +27,8 @@ export async function GET(req: Request) {
     const client = getTtsClient();
     const { searchParams } = new URL(req.url);
     const text = searchParams.get("text") ?? "";
-    const voice = searchParams.get("voice") ?? "uk-UA-Standard-A";
+    const voiceParam = searchParams.get("voice");
+    const voice = (!voiceParam || voiceParam.trim() === "") ? "uk-UA-Standard-A" : voiceParam;
     const quality = searchParams.get("quality") ?? "optimal"; // optimal, high, fast
     
     if (!text) {

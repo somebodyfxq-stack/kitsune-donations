@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQueryState, parseAsInteger, parseAsString } from "nuqs";
+import { customFetch } from "@/lib/fetch";
 import { AmountPresets } from "./amount-presets";
 import { YouTubeDialog } from "./youtube-dialog";
 
@@ -71,7 +72,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
         const slug = parts[0] || "";
         if (slug) params.set("streamer", slug);
       }
-      const res = await fetch(`/api/donations/create?${params.toString()}`, {
+      const res = await customFetch(`/api/donations/create?${params.toString()}`, {
         cache: "no-store",
       });
       const data = await res.json();

@@ -3,14 +3,34 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!(session as any)?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const url = new URL(request.url);
+    const token = url.searchParams.get("token");
+    
+    let userId: string;
+    
+    if (token) {
+      // Якщо передано токен - це запит від OBS віджета
+      const settings = await prisma.monobankSettings.findFirst({
+        where: { obsWidgetToken: token },
+        select: { userId: true }
+      });
+      
+      if (!settings) {
+        return NextResponse.json({ error: "Invalid widget token" }, { status: 401 });
+      }
+      
+      userId = settings.userId;
+    } else {
+      // Якщо токена немає - перевіряємо сесію
+      const session = await getServerSession(authOptions);
+      if (!(session as any)?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      
+      userId = (session as any).user.id;
     }
-
-    const userId = (session as any).user.id;
     
     // Отримуємо поточний стан паузи
     const settings = await prisma.monobankSettings.findUnique({

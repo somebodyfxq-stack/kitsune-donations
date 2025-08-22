@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { YouTubeWidgetClient } from "../../youtube-widget-client";
+import type { Metadata } from "next";
 
 interface YouTubePageProps {
   params: {
@@ -10,6 +11,18 @@ interface YouTubePageProps {
     debug?: string;
   };
 }
+
+export const metadata: Metadata = {
+  title: "YouTube Віджет - Kitsune Donations",
+  viewport: "width=device-width, initial-scale=1"
+};
+
+const ErrorPage = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="p-5 font-mono bg-black text-white min-h-screen">
+    <h1 className="text-2xl mb-4">{title}</h1>
+    {children}
+  </div>
+);
 
 export default async function YouTubePage({ params, searchParams }: YouTubePageProps) {
   const { token } = params;
@@ -36,19 +49,14 @@ export default async function YouTubePage({ params, searchParams }: YouTubePageP
       });
       console.log(allTokens);
       
-      // Тимчасово показуємо детальну помилку замість redirect
       return (
-        <html lang="uk">
-          <head><title>Помилка - YouTube Віджет</title></head>
-          <body style={{ padding: '20px', fontFamily: 'monospace', background: '#000', color: '#fff' }}>
-            <h1>🔍 Debug Info - YouTube Widget</h1>
-            <p><strong>Token from URL:</strong> {token}</p>
-            <p><strong>Available tokens in database:</strong></p>
-            <pre>{JSON.stringify(allTokens, null, 2)}</pre>
-            <p><strong>Issue:</strong> No user found with this OBS token.</p>
-            <p><strong>Solution:</strong> Check if the token is correct or generate a new one in /panel</p>
-          </body>
-        </html>
+        <ErrorPage title="🔍 Debug Info - YouTube Widget">
+          <p className="mb-2"><strong>Token from URL:</strong> {token}</p>
+          <p className="mb-2"><strong>Available tokens in database:</strong></p>
+          <pre className="mb-4 p-2 bg-gray-800 rounded">{JSON.stringify(allTokens, null, 2)}</pre>
+          <p className="mb-2"><strong>Issue:</strong> No user found with this OBS token.</p>
+          <p><strong>Solution:</strong> Check if the token is correct or generate a new one in /panel</p>
+        </ErrorPage>
       );
     }
     
@@ -57,19 +65,14 @@ export default async function YouTubePage({ params, searchParams }: YouTubePageP
   } catch (error) {
     console.error("❌ Database error:", error);
     
-    // Тимчасово показуємо детальну помилку замість redirect
     return (
-      <html lang="uk">
-        <head><title>Database Error - YouTube Віджет</title></head>
-        <body style={{ padding: '20px', fontFamily: 'monospace', background: '#000', color: '#fff' }}>
-          <h1>💥 Database Error - YouTube Widget</h1>
-          <p><strong>Token from URL:</strong> {token}</p>
-          <p><strong>Error:</strong></p>
-          <pre style={{ color: '#ff6b6b' }}>{error instanceof Error ? error.message : String(error)}</pre>
-          <p><strong>Stack trace:</strong></p>
-          <pre style={{ color: '#ffd93d', fontSize: '12px' }}>{error instanceof Error ? error.stack : 'No stack trace available'}</pre>
-        </body>
-      </html>
+      <ErrorPage title="💥 Database Error - YouTube Widget">
+        <p className="mb-2"><strong>Token from URL:</strong> {token}</p>
+        <p className="mb-2"><strong>Error:</strong></p>
+        <pre className="mb-4 p-2 bg-gray-800 rounded text-red-400">{error instanceof Error ? error.message : String(error)}</pre>
+        <p className="mb-2"><strong>Stack trace:</strong></p>
+        <pre className="p-2 bg-gray-800 rounded text-yellow-400 text-xs">{error instanceof Error ? error.stack : 'No stack trace available'}</pre>
+      </ErrorPage>
     );
   }
 
@@ -108,56 +111,21 @@ export default async function YouTubePage({ params, searchParams }: YouTubePageP
   }
 
   return (
-    <html lang="uk">
-      <head>
-        <title>YouTube Віджет - Kitsune Donations</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <style dangerouslySetInnerHTML={{
-          __html: `
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            
-            html, body {
-              width: 100%;
-              height: 100%;
-              background: transparent;
-              overflow: hidden;
-            }
-            
-            #__next {
-              width: 100%;
-              height: 100%;
-            }
-          `
-        }} />
-      </head>
-      <body>
-        <YouTubeWidgetClient 
-          streamerId={streamerId} 
-          settings={youtubeSettings}
-        />
-        
-        {debug && (
-          <div 
-            style={{
-              position: 'fixed',
-              bottom: '10px',
-              right: '10px',
-              background: 'rgba(0,0,0,0.8)',
-              color: 'white',
-              padding: '8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              zIndex: 1000
-            }}
-          >
-            YouTube Widget Debug Mode
-          </div>
-        )}
-      </body>
-    </html>
+    <div 
+      className="w-full h-screen bg-transparent overflow-hidden m-0 p-0"
+      suppressHydrationWarning={true}
+    >
+      <YouTubeWidgetClient 
+        streamerId={streamerId}
+        token={token}
+        settings={youtubeSettings}
+      />
+      
+      {debug && (
+        <div className="fixed bottom-2.5 right-2.5 bg-black/80 text-white p-2 rounded text-xs z-[1000]">
+          YouTube Widget Debug Mode
+        </div>
+      )}
+    </div>
   );
 }

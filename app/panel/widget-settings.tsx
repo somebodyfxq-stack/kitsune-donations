@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { customFetch } from "@/lib/fetch";
 import type { StatusData } from "./status-client";
 
 interface WidgetSettingsProps {
@@ -37,7 +38,7 @@ export function WidgetSettings({ initial }: WidgetSettingsProps) {
   useEffect(() => {
     const loadYouTubeSettings = async () => {
       try {
-        const response = await fetch('/api/youtube/settings');
+        const response = await customFetch('/api/youtube/settings');
         if (response.ok) {
           const data = await response.json();
           const settings = data.settings;
@@ -251,73 +252,7 @@ export function WidgetSettings({ initial }: WidgetSettingsProps) {
         </div>
       </div>
 
-      {/* Комбінований віджет */}
-      <div className="card p-6 md:p-8">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
-            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2L2 7v10c0 5.55 3.84 9.739 9 11 5.16-1.261 9-5.45 9-11V7l-10-5z"/>
-            </svg>
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-medium text-white mb-3">🔥 Комбінований віджет (РЕКОМЕНДОВАНО)</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-300 mb-2">
-                  URL комбінованого віджета
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      value={obsWidgetUrl ? `${window.location.origin}/obs/${initial.obsWidgetToken}/combined` : 'Завантаження...'}
-                      readOnly
-                      className="w-full text-xs bg-black/30 text-purple-300 p-3 rounded-lg border border-purple-500/30 focus:border-purple-400 focus:ring-1 focus:ring-purple-400 font-mono transition-all duration-300"
-                    />
-                  </div>
-                  
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(`${window.location.origin}/obs/${initial.obsWidgetToken}/combined`)}
-                    disabled={!initial.obsWidgetToken}
-                    className="p-3 bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 text-white rounded-lg transition-all duration-200 disabled:bg-gray-600 disabled:cursor-not-allowed"
-                    title="Копіювати URL"
-                  >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>
-                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
 
-              <div className="bg-gradient-to-r from-purple-500/10 to-red-500/10 border border-purple-500/20 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-purple-300 mb-2">⚡ Переваги комбінованого віджета</h4>
-                <ul className="text-sm text-neutral-300 space-y-1">
-                  <li>✅ Обробляє як звичайні донати, так і YouTube відео</li>
-                  <li>✅ Правильна логіка черг відповідно до налаштувань</li>
-                  <li>✅ Один віджет замість двох окремих</li>
-                  <li>✅ Автоматична синхронізація налаштувань</li>
-                  <li>🎯 <strong>Рекомендується використовувати замість окремих віджетів</strong></li>
-                </ul>
-              </div>
-
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-blue-300 mb-2">🔧 Інструкція для комбінованого віджета</h4>
-                <ol className="text-sm text-neutral-300 space-y-1">
-                  <li>1. Видаліть старі віджети з OBS (якщо є)</li>
-                  <li>2. Додайте <strong>Browser Source</strong> в OBS</li>
-                  <li>3. Вставте скопійований URL комбінованого віджета</li>
-                  <li>4. Встановіть розмір: <strong>1920x1080</strong></li>
-                  <li>5. Увімкніть "Shutdown source when not visible"</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Налаштування YouTube віджету */}
       <div className="card p-6 md:p-8">
@@ -442,7 +377,7 @@ export function WidgetSettings({ initial }: WidgetSettingsProps) {
               <button
                 onClick={async () => {
                   try {
-                    const response = await fetch('/api/youtube/settings', {
+                    const response = await customFetch('/api/youtube/settings', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
