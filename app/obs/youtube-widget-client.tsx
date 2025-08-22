@@ -2,6 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createEventSource } from "@/lib/fetch";
+import dynamic from "next/dynamic";
+
+// Динамічний імпорт react-player для оптимізації
+const ReactPlayer = dynamic(() => import("react-player"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-black text-white">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+        <p className="text-sm">Завантаження плеєра...</p>
+      </div>
+    </div>
+  ),
+}) as any;
 
 // =============================================
 // TYPES & INTERFACES
@@ -22,7 +36,7 @@ interface YouTubeSettings {
   volume: number;
   showClipTitle: boolean;
   showDonorName: boolean;
-  showControls: boolean; // Додано для donatello.to підходу
+  showControls: boolean;
   minLikes: number;
   minViews: number;
   minComments: number;
@@ -44,19 +58,15 @@ type PlayerState = "idle" | "loading" | "playing" | "error" | "ended";
 
 const DEFAULT_SETTINGS: YouTubeSettings = {
   maxDurationMinutes: 5,
-  volume: 5, // 🎯 donatello.to використовує менші значення (потім * 10)
+  volume: 80, // react-player використовує значення 0-100
   showClipTitle: true,
   showDonorName: true,
-  showControls: true, // 🎯 donatello.to завжди показує controls
+  showControls: true, // Завжди показувати контроли
   minLikes: 0,
   minViews: 0,
   minComments: 0,
   showImmediately: false
 };
-
-// =============================================
-// DONATELLO.TO APPROACH - MINIMAL YOUTUBE SETUP
-// =============================================
 
 // =============================================
 // MAIN COMPONENT
@@ -77,14 +87,14 @@ export function YouTubeWidgetClient({
   const [currentVideo, setCurrentVideo] = useState<YouTubeEvent | null>(null);
   const [videoTitle, setVideoTitle] = useState<string>("");
   const [debugMode, setDebugMode] = useState(false);
-  const [youtubeApiReady, setYoutubeApiReady] = useState(false);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [hasPlayerError, setHasPlayerError] = useState(false);
   
   // =============================================
   // REFS
   // =============================================
   
   const eventSourceRef = useRef<EventSource | null>(null);
-  const playerRef = useRef<any>(null);
   const videoQueueRef = useRef<YouTubeEvent[]>([]);
   const videoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -109,64 +119,11 @@ export function YouTubeWidgetClient({
   }, []);
 
   // =============================================
-  // YOUTUBE API MANAGEMENT
+  // REACT-PLAYER BASED VIDEO MANAGEMENT
   // =============================================
   
-  useEffect(() => {
-    log("Loading YouTube IFrame API...");
-    
-    // Check if API is already loaded
-    if ((window as any).YT?.Player) {
-      log("YouTube API already available");
-      setYoutubeApiReady(true);
-      return;
-    }
-    
-    // Check if script exists
-    const scriptExists = document.querySelector('script[src*="youtube.com/iframe_api"]');
-    if (scriptExists) {
-      log("YouTube API script exists, waiting...");
-      const checkApi = setInterval(() => {
-        if ((window as any).YT?.Player) {
-          log("YouTube API ready from existing script");
-          setYoutubeApiReady(true);
-          clearInterval(checkApi);
-        }
-      }, 100);
-      
-      return () => clearInterval(checkApi);
-    }
-    
-    // Load the script
-    const script = document.createElement('script');
-    script.src = 'https://www.youtube.com/iframe_api';
-    script.async = true;
-    
-    const firstScript = document.getElementsByTagName('script')[0];
-    if (firstScript?.parentNode) {
-      firstScript.parentNode.insertBefore(script, firstScript);
-    } else {
-      document.head.appendChild(script);
-    }
-    
-    // ✅ Використовуємо стандартний IFrame API callback 
-    const originalCallback = (window as any).onYouTubeIframeAPIReady;
-    (window as any).onYouTubeIframeAPIReady = () => {
-      log("🎬 YouTube IFrame API ready");
-      setYoutubeApiReady(true);
-      
-      if (originalCallback && typeof originalCallback === 'function') {
-        originalCallback();
-      }
-    };
-
-    return () => {
-      // Cleanup callback
-      if ((window as any).onYouTubeIframeAPIReady) {
-        delete (window as any).onYouTubeIframeAPIReady;
-      }
-    };
-  }, [log]);
+  // react-player не потребує окремого завантаження API
+  // Всі операції виконуються через компонент
   
   // =============================================
   // VIDEO VALIDATION
@@ -201,155 +158,57 @@ export function YouTubeWidgetClient({
   // =============================================
   
   const clearPlayer = useCallback(() => {
-    log("Clearing player");
+    log("Clearing ReactPlayer");
     
-    if (playerRef.current) {
-      try {
-        playerRef.current.destroy();
-      } catch (err) {
-        logError("Error destroying player:", err);
-      }
-      playerRef.current = null;
-    }
-    
-    const container = document.getElementById('youtube-player');
-    if (container) {
-      container.innerHTML = '';
-    }
-  }, [log, logError]);
+    // react-player cleanup відбувається автоматично через React lifecycle
+    setPlayerState("idle");
+    setIsPlayerReady(false);
+    setHasPlayerError(false);
+    setCurrentVideo(null);
+    setVideoTitle("");
+  }, [log]);
   
-  const createYouTubePlayer = useCallback(async (videoId: string): Promise<boolean> => {
-    if (!youtubeApiReady) {
-      logError("❌ YouTube API not ready");
-      return false;
-    }
+    // Fallback для заблокованих відео
+  const handleVideoError = useCallback((videoId: string, error?: any) => {
+    log(`🔄 Handling video error for: ${videoId}`, error);
     
-    // ✅ Перевіряємо чи глобальний YT об'єкт доступний
-    if (!window.YT || !window.YT.Player) {
-      logError("❌ YouTube Player not available");
-      return false;
-    }
-    
-    log(`🎬 Creating YouTube player (donatello.to style) for: ${videoId}`);
-    
-    // Clear existing player
-    clearPlayer();
-    
-    // Wait for DOM
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Find container
-    const container = document.getElementById('youtube-player');
-    if (!container) {
-      logError("Player container not found");
-      return false;
-    }
-    
-    try {
-              // 🎯 Створюємо плеєр точно як donatello.to
-      playerRef.current = new (window as any).YT.Player('youtube-player', {
-        height: '540', // Використовуємо їх розміри
-        width: '720',
-        videoId: videoId,
-        playerVars: {
-          'autoplay': 1, // ✅ Точно як donatello.to
-          'controls': 1, // ✅ Точно як donatello.to  
-          'start': 0,    // ✅ Точно як donatello.to
-          'origin': window.location.origin // 🔍 Додаємо origin для кращої сумісності
-        },
-          events: {
-                      onReady: (event: any) => {
-            log("✅ Player ready, setting volume (donatello.to style)");
-            // 🎯 Використовуємо формулу donatello.to: volume * 10
-            const volume = Math.max(0, Math.min(100, settings.volume * 10));
-            event.target.setVolume(volume);
-            setPlayerState("playing");
-          },
-            onStateChange: (event: any) => {
-              const state = event.data;
-                          if (state === 0) { // Ended
-              log("Video ended");
-              setPlayerState("ended");
-              setCurrentVideo(null);
-              setPlayerState("idle");
-            } else if (state === 1) { // Playing
-              setPlayerState("playing");
-            } else if (state === 2) { // Paused
-              setPlayerState("loading");
-              }
-            },
-            onError: (event: any) => {
-            const errorCode = event.data;
-            logError(`Player error: ${errorCode}`);
-            setPlayerState("error");
-            
-            // Тільки якщо це дійсно copyright error
-            if (errorCode === 150) {
-              logError("❌ Video blocked by copyright - trying fallback");
-              createSimpleFallback(videoId);
-            } else {
-              logError(`❌ Player error ${errorCode}, finishing video`);
-              setPlayerState("ended");
-              setCurrentVideo(null);
-              setPlayerState("idle");
-            }
-            }
-          }
-        });
-      
-      log("✅ YouTube player created successfully");
-      return true;
-    } catch (error) {
-      logError("❌ Failed to create player:", error);
-      return false;
-    }
-  }, [youtubeApiReady, settings.volume, settings.showControls, log, logError, clearPlayer]);
-  
-  // 🎯 Простий fallback без складних обходів (як у donatello.to)
-  const createSimpleFallback = useCallback((videoId: string) => {
-    log(`🔄 Creating simple fallback for: ${videoId}`);
-    
-    const container = document.getElementById('youtube-player');
-    if (!container) {
-      logError("Container not found for fallback");
-      return;
-    }
-    
-    // Показуємо повідомлення користувачу
-    container.innerHTML = `
-      <div style="
-        width: 100%; 
-        height: 100%; 
-        background: black; 
-        color: white; 
-        display: flex; 
-        flex-direction: column;
-        align-items: center; 
-        justify-content: center; 
-        font-family: Arial, sans-serif;
-        text-align: center;
-        padding: 20px;
-      ">
-        <div style="font-size: 24px; margin-bottom: 10px;">🚫</div>
-        <div style="font-size: 16px; margin-bottom: 10px;">Відео заблоковано</div>
-        <div style="font-size: 12px; color: #999;">
-          Це відео не дозволено для вбудовування<br/>
-          через авторські права
-        </div>
-      </div>
-    `;
-    
-    log("❌ Fallback message displayed for blocked video");
+    setHasPlayerError(true);
     setPlayerState("error");
     
-    // Автоматично завершуємо через 3 секунди
-    setTimeout(() => {
-      log("🏁 Auto-finishing blocked video");
-      setPlayerState("idle");
-      setCurrentVideo(null);
-      setPlayerState("idle");
-    }, 3000);
-  }, [log, logError]);
+    // Автоматичне завершення буде оброблено через useEffect
+  }, [log]);
+
+  const createReactPlayer = useCallback(async (videoId: string): Promise<boolean> => {
+    log(`🎬 Creating ReactPlayer for video: ${videoId}`);
+    
+    try {
+              setPlayerState("loading");
+      setIsPlayerReady(false);
+      setHasPlayerError(false);
+      
+      const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      log(`📺 Video URL: ${videoUrl}`);
+      log(`🎛️ Settings:`, {
+        volume: settings.volume,
+        showControls: settings.showControls,
+        maxDuration: settings.maxDurationMinutes
+      });
+      
+      // Додаємо timeout для випадку, коли відео довго не завантажується
+      setTimeout(() => {
+        logError("⏰ Video loading timeout - forcing skip");
+        setHasPlayerError(true);
+        setPlayerState("error");
+      }, 15000); // 15 секунд timeout
+      
+      return true;
+    } catch (error) {
+      logError("❌ Failed to prepare ReactPlayer:", error);
+      setHasPlayerError(true);
+      setPlayerState("error");
+      return false;
+    }
+  }, [log, logError, settings]);
   
   // =============================================
   // VIDEO LIFECYCLE
@@ -385,18 +244,10 @@ export function YouTubeWidgetClient({
     await validateVideo(videoId);
     
     // Create player
-    const success = await createYouTubePlayer(videoId);
+    const success = await createReactPlayer(videoId);
     if (!success) {
-      log("❌ Failed to create YouTube player, trying retry...");
-      
-      // Retry після короткої затримки
-      setTimeout(async () => {
-        const retrySuccess = await createYouTubePlayer(videoId);
-        if (!retrySuccess) {
-          log("❌ Retry failed, showing fallback");
-          createSimpleFallback(videoId);
-        }
-      }, 1000);
+      log("❌ Failed to prepare ReactPlayer");
+      handleVideoError(videoId, "Failed to prepare player");
       return;
     }
     
@@ -407,7 +258,7 @@ export function YouTubeWidgetClient({
       finishVideo();
     }, timeLimit);
     
-  }, [log, logError, extractVideoId, validateVideo, createYouTubePlayer, createSimpleFallback, settings.maxDurationMinutes]);
+  }, [log, logError, extractVideoId, validateVideo, createReactPlayer, handleVideoError, settings.maxDurationMinutes]);
   
   const finishVideo = useCallback(() => {
     log("Finishing video");
@@ -555,10 +406,49 @@ export function YouTubeWidgetClient({
   useEffect(() => {
     // Read debug mode from URL
     const url = new URL(window.location.href);
-    setDebugMode(url.searchParams.get("debug") === "true");
+    const isDebug = url.searchParams.get("debug") === "true";
+    setDebugMode(isDebug);
     
-    log("YouTube Widget initialized");
-  }, [log]);
+    log("YouTube Widget initialized with settings:", settings);
+    if (isDebug) {
+      log("🔧 Debug mode enabled");
+      log("📋 Settings breakdown:", {
+        volume: settings.volume,
+        showControls: settings.showControls,
+        showClipTitle: settings.showClipTitle,
+        showDonorName: settings.showDonorName,
+        maxDurationMinutes: settings.maxDurationMinutes
+      });
+    }
+  }, [log, settings]);
+
+  // Debug для стану компонента
+  useEffect(() => {
+    if (debugMode) {
+      log("🔄 State change:", {
+        playerState,
+        isPlayerReady,
+        hasPlayerError,
+        currentVideo: currentVideo ? {
+          nickname: currentVideo.nickname,
+          videoUrl: currentVideo.youtube_url || currentVideo.videoUrl
+        } : null
+      });
+    }
+  }, [debugMode, playerState, isPlayerReady, hasPlayerError, currentVideo, log]);
+
+  // Автоматичне завершення відео при помилці
+  useEffect(() => {
+    if (hasPlayerError && currentVideo) {
+      log("🔄 Video error detected, auto-finishing in 3 seconds");
+      const timeout = setTimeout(() => {
+        log("🏁 Auto-finishing error video");
+        finishVideo();
+      }, 3000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [hasPlayerError, currentVideo, finishVideo, log]);
   
   useEffect(() => {
     // Тільки ініціалізуємо SSE якщо його ще немає
@@ -605,12 +495,18 @@ export function YouTubeWidgetClient({
       {/* Debug Panel */}
       {debugMode && (
         <div className="pointer-events-auto fixed top-4 left-4 z-50 bg-black/90 text-white p-4 rounded text-sm max-w-xs space-y-2">
-          <div><strong>🎬 YouTube Debug</strong></div>
+          <div><strong>🎬 YouTube Debug (ReactPlayer)</strong></div>
           <div>Connection: <span className={connectionState === 'connected' ? 'text-green-400' : 'text-red-400'}>{connectionState}</span></div>
-          <div>API Ready: <span className={youtubeApiReady ? 'text-green-400' : 'text-red-400'}>{youtubeApiReady ? "Yes" : "No"}</span></div>
+          <div>Player Ready: <span className={isPlayerReady ? 'text-green-400' : 'text-red-400'}>{isPlayerReady ? "Yes" : "No"}</span></div>
+          <div>Player Error: <span className={hasPlayerError ? 'text-red-400' : 'text-green-400'}>{hasPlayerError ? "Yes" : "No"}</span></div>
           <div>Player: <span className={playerState === 'playing' ? 'text-green-400' : 'text-yellow-400'}>{playerState}</span></div>
           <div>Queue: {videoQueueRef.current.length}</div>
           <div>Current: {currentVideo?.nickname || "None"}</div>
+          {currentVideo && (
+            <div className="text-xs opacity-75">
+              VideoID: {extractVideoId(currentVideo.youtube_url || currentVideo.videoUrl || '')}
+            </div>
+          )}
           
           <button
             onClick={() => {
@@ -621,7 +517,7 @@ export function YouTubeWidgetClient({
                 message: "Manual test video",
                 amount: 100,
                 createdAt: new Date().toISOString(),
-                youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                youtube_url: "https://www.youtube.com/watch?v=sTKEC5gEQmA"
               });
             }}
             className="w-full bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-xs"
@@ -662,7 +558,7 @@ export function YouTubeWidgetClient({
       {currentVideo && playerState !== "idle" && (
         <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-[9999] bg-black/90 rounded-lg overflow-hidden">
           <div style={{ width: '720px' }}>
-            {/* Video Info - мінімальні відступи */}
+            {/* Video Info */}
             <div className="px-4 pt-2 text-white text-center">
               {settings.showClipTitle && videoTitle && (
                 <div className="text-sm font-medium truncate leading-tight">
@@ -677,12 +573,152 @@ export function YouTubeWidgetClient({
               )}
             </div>
             
-                    {/* YouTube Player Container - без відступу зверху */}
+            {/* ReactPlayer Container */}
         <div className="w-full" style={{ height: '540px' }}>
-          <div 
-            id="youtube-player" 
-            className="w-full h-full bg-black border-2 border-gray-400"
-          />
+              {hasPlayerError ? (
+                <div className="w-full h-full flex items-center justify-center bg-black text-white border-2 border-red-500">
+                  <div className="text-center space-y-4">
+                    <div className="text-red-400 text-4xl">⚠️</div>
+                    <div>
+                      <p className="text-lg font-semibold">Відео недоступне для відтворення</p>
+                      <p className="text-sm opacity-75 mt-1">
+                        Можливо відео приватне або заблоковане
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : playerState === "loading" ? (
+                <div className="w-full h-full flex items-center justify-center bg-black text-white border-2 border-blue-500">
+                  <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+                    <div>
+                      <p className="text-lg font-semibold">Завантаження відео...</p>
+                      <p className="text-sm opacity-75 mt-1">
+                        {videoTitle || "Підготовка плеєра"}
+                      </p>
+                      {debugMode && (
+                        <p className="text-xs opacity-50 mt-2">
+                          PlayerState: {playerState}, Ready: {isPlayerReady ? "Yes" : "No"}
+                        </p>
+                      )}
+                      <button 
+                        className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors text-sm"
+                        onClick={() => {
+                          log("🔄 Manual skip requested during loading");
+                          finishVideo();
+                        }}
+                      >
+                        Пропустити відео
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative w-full h-full">
+                  {(() => {
+                    const videoId = extractVideoId(currentVideo.youtube_url || currentVideo.videoUrl || '');
+                    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+                    
+                    log(`🔍 Processing video: ID=${videoId}, URL=${videoUrl}`);
+                    log(`⚙️ Player props:`, {
+                      url: videoUrl,
+                      playing: true,
+                      controls: settings.showControls,
+                      volume: settings.volume / 100,
+                      muted: true
+                    });
+                    
+                    return (
+                      <ReactPlayer
+                        key={videoId} // Додаємо key для форсування ре-рендеру
+                        url={videoUrl}
+                        playing={true}
+                        controls={settings.showControls}
+                        width="100%"
+                        height="100%"
+                        volume={settings.volume / 100}
+                        muted={true}
+                        light={false}
+                        pip={false}
+                        stopOnUnmount={false}
+                        onReady={() => {
+                          log("✅ ReactPlayer READY callback triggered");
+                          setIsPlayerReady(true);
+                        }}
+                        onStart={() => {
+                          log("✅ ReactPlayer START callback triggered");
+                          setPlayerState("playing");
+                        }}
+                        onPlay={() => {
+                          log("✅ ReactPlayer PLAY callback triggered");
+                          setPlayerState("playing");
+                        }}
+                        onPause={() => {
+                          log("⏸️ ReactPlayer PAUSE callback triggered");
+                        }}
+                        onBuffer={() => {
+                          log("🔄 ReactPlayer BUFFER callback triggered");
+                        }}
+                        onBufferEnd={() => {
+                          log("✅ ReactPlayer BUFFER END callback triggered");
+                        }}
+                        onLoadStart={() => {
+                          log("🔄 ReactPlayer LOAD START callback triggered");
+                          setPlayerState("loading");
+                        }}
+                        onDuration={(duration: number) => {
+                          log(`📏 ReactPlayer DURATION callback: ${duration} seconds`);
+                        }}
+                        onProgress={(state: any) => {
+                          if (state.played > 0) {
+                            log(`📊 ReactPlayer PROGRESS: ${Math.round(state.played * 100)}%`);
+                            if (playerState !== "playing") {
+                              setPlayerState("playing");
+                            }
+                          }
+                        }}
+                        onEnded={() => {
+                          log("🏁 ReactPlayer ENDED callback triggered");
+                          setPlayerState("ended");
+                          finishVideo();
+                        }}
+                        onError={(error: any) => {
+                          logError("❌ ReactPlayer ERROR callback:", error);
+                          const videoId = extractVideoId(currentVideo.youtube_url || currentVideo.videoUrl || '');
+                          handleVideoError(videoId || 'unknown', error);
+                        }}
+                        config={{
+                          youtube: {
+                            playerVars: {
+                              autoplay: 1,
+                              controls: settings.showControls ? 1 : 0,
+                              modestbranding: 1,
+                              rel: 0,
+                              enablejsapi: 1,
+                              iv_load_policy: 3
+                            }
+                          }
+                        }}
+                        style={{
+                          backgroundColor: '#000'
+                        }}
+                      />
+                    );
+                  })()}
+                  
+                  {/* Muted indicator */}
+                  <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                    🔇 Відео заглушене для автозапуску
+                  </div>
+                  
+                  {/* Player state indicator */}
+                  {debugMode && (
+                    <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                      {playerState} | Ready: {isPlayerReady ? "✅" : "❌"}
+                    </div>
+                  )}
+                </div>
+              )}
           </div>
           </div>
         </div>

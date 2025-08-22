@@ -59,11 +59,13 @@ export async function POST(_request: NextRequest) {
 
     const testAmounts = [10, 25, 50, 100, 150, 200, 300, 500, 777, 1000];
 
-    // Тестові YouTube відео
+    // Тестові відео з різних платформ (react-player підтримує більше джерел)
     const testYouTubeVideos = [
-      "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Rick Roll - Never Gonna Give You Up
-      "https://www.youtube.com/watch?v=9bZkp7q19f0", // PSY - GANGNAM STYLE
+      "https://www.youtube.com/watch?v=sTKEC5gEQmA&pp=ygUEM9GFNA%3D%3D", // aespa - whiplash
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Rick Astley - Never Gonna Give You Up
       "https://youtu.be/fJ9rUzIMcZQ", // Queen - Bohemian Rhapsody
+      "https://www.youtube.com/watch?v=ktvTqknDobU", // Imagine Dragons - Radioactive
+      "https://www.youtube.com/watch?v=QH2-TGUlwu4", // Nyan Cat (should work with embedding)
       null, // Донат без відео
       null, // Донат без відео
     ];

@@ -82,6 +82,7 @@ export default async function YouTubePage({ params, searchParams }: YouTubePageP
     volume: 50,
     showClipTitle: true,
     showDonorName: true,
+    showControls: true, // Додаємо пропущене поле
     minLikes: 0,
     minViews: 0,
     minComments: 0,
@@ -99,6 +100,7 @@ export default async function YouTubePage({ params, searchParams }: YouTubePageP
         volume: settings.volume,
         showClipTitle: settings.showClipTitle,
         showDonorName: settings.showDonorName,
+        showControls: settings.showControls ?? true, // Fallback to true if undefined
         minLikes: settings.minLikes,
         minViews: settings.minViews,
         minComments: settings.minComments,
