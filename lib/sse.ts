@@ -85,14 +85,14 @@ export function addClient(streamerId?: string | null) {
   return { id, stream };
 }
 
-export function broadcastDonation(payload: DonationPayload) {
+export function broadcastDonation(payload: DonationPayload, eventType?: string) {
   console.log(`Broadcasting donation to ${clients.length} clients:`, payload);
   
-  // Визначаємо тип події на основі наявності YouTube URL
-  const eventType = payload.youtubeUrl ? 'youtube-video' : 'donation';
+  // Визначаємо тип події на основі наявності YouTube URL або переданого параметра
+  const finalEventType = eventType || (payload.youtubeUrl ? 'youtube-video' : 'donation');
   
   const encoded = new TextEncoder().encode(
-    `event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`,
+    `event: ${finalEventType}\ndata: ${JSON.stringify(payload)}\n\n`,
   );
   
   let sentCount = 0;
@@ -101,7 +101,7 @@ export function broadcastDonation(payload: DonationPayload) {
       // Фільтруємо клієнтів: якщо streamerId не вказан - показуємо всі донати,
       // якщо вказан - показуємо тільки для цього стрімера
       const shouldSend = c.streamerId === null || c.streamerId === payload.streamerId;
-      console.log(`Client ${index}: streamerId=${c.streamerId}, shouldSend=${shouldSend}, eventType=${eventType}`);
+      console.log(`Client ${index}: streamerId=${c.streamerId}, shouldSend=${shouldSend}, eventType=${finalEventType}`);
       
       if (shouldSend) {
         c.controller.enqueue(encoded);
@@ -112,5 +112,5 @@ export function broadcastDonation(payload: DonationPayload) {
     }
   });
   
-  console.log(`Sent ${eventType} event to ${sentCount}/${clients.length} clients`);
+  console.log(`Sent ${finalEventType} event to ${sentCount}/${clients.length} clients`);
 }

@@ -6,8 +6,7 @@ import type { DonationEvent } from "@prisma/client";
 
 interface DonationWithDate extends Omit<DonationEvent, 'createdAt'> {
   createdAt: string;
-  youtubeUrl?: string | null;
-  // jarTitle вже визначений в DonationEvent
+  // jarTitle і youtubeUrl вже визначені в DonationEvent
 }
 
 interface DonationsHistoryProps {
@@ -291,6 +290,13 @@ export function DonationsHistory({ initial }: DonationsHistoryProps) {
                 ⏸️ Призупинити показ донатів
               </>
             )}
+          </button>
+
+          <button
+            onClick={() => window.open('/panel/queue', '_blank')}
+            className="px-4 py-2 text-sm rounded-lg font-medium transition-all bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            🎬 Відкрити чергу YouTube
           </button>
         </div>
 

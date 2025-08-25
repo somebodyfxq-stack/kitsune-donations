@@ -59,15 +59,12 @@ export async function POST(_request: NextRequest) {
 
     const testAmounts = [10, 25, 50, 100, 150, 200, 300, 500, 777, 1000];
 
-    // Тестові відео з різних платформ (react-player підтримує більше джерел)
+    // Тестові відео з різних платформ
     const testYouTubeVideos = [
       "https://www.youtube.com/watch?v=sTKEC5gEQmA&pp=ygUEM9GFNA%3D%3D", // aespa - whiplash
       "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Rick Astley - Never Gonna Give You Up
       "https://youtu.be/fJ9rUzIMcZQ", // Queen - Bohemian Rhapsody
       "https://www.youtube.com/watch?v=ktvTqknDobU", // Imagine Dragons - Radioactive
-      "https://www.youtube.com/watch?v=QH2-TGUlwu4", // Nyan Cat (should work with embedding)
-      null, // Донат без відео
-      null, // Донат без відео
     ];
 
     const randomMessage = testMessages[Math.floor(Math.random() * testMessages.length)];
@@ -132,19 +129,32 @@ export async function POST(_request: NextRequest) {
       message: randomMessage,
       amount: randomAmount,
       monoComment: `Тестовий донат ${randomAmount}₴`,
-      youtubeUrl: randomYouTubeUrl,
+      youtubeUrl: randomYouTubeUrl, // Для загальних донатів
+      youtube_url: randomYouTubeUrl, // Для YouTube віджету
+      videoUrl: randomYouTubeUrl, // Backward compatibility
       jarTitle: settings.jarTitle || "Банка Monobank",
       createdAt: donationEvent.createdAt.toISOString(),
       streamerId: userId
     };
     
-    console.log('📺 Broadcasting test donation with YouTube:', {
-      ...ssePayload,
-      eventType: randomYouTubeUrl ? 'youtube-video' : 'donation',
-      hasYouTubeUrl: !!randomYouTubeUrl,
-      youtubeUrl: randomYouTubeUrl
-    });
-    broadcastDonation(ssePayload);
+    // Відправляємо різні типи подій залежно від наявності YouTube URL
+    if (randomYouTubeUrl) {
+      console.log('📺 Broadcasting test donation with YouTube video:', {
+        ...ssePayload,
+        eventType: 'youtube-video',
+        youtubeUrl: randomYouTubeUrl
+      });
+      
+      // Для YouTube відео використовуємо спеціальну SSE подію
+      broadcastDonation(ssePayload);
+    } else {
+      console.log('📺 Broadcasting test donation (no YouTube):', {
+        ...ssePayload,
+        eventType: 'donation'
+      });
+      
+      broadcastDonation(ssePayload);
+    }
 
     return NextResponse.json({ 
       success: true, 

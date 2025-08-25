@@ -165,6 +165,8 @@ export async function POST(
     youtubeUrl: intent.youtubeUrl, // YouTube URL для віджету
     streamerId,
     createdAt: new Date(), // Використовуємо Date об'єкт
+    cleared: false, // Default value for new donations
+    videoStatus: null, // Default video status
   };
 
   try {

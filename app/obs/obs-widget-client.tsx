@@ -234,7 +234,19 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
     
     // Create TTS
     const text = `${next.nickname} задонатив ${Math.round(next.amount)} гривень... ${next.message}`;
-    const ttsUrl = `/api/tts?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(text)}&quality=optimal`;
+    const ttsUrl = `/api/tts?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(text)}&quality=fast`;
+    
+    // SAVE YouTube URL at the start - before data can be cleared
+    const savedYouTubeUrl = (next as any)?.youtube_url || (next as any)?.videoUrl || (next as any)?.youtubeUrl;
+    const savedDonationData = {
+      identifier: next.identifier,
+      nickname: next.nickname,
+      message: next.message,
+      amount: next.amount,
+      createdAt: next.createdAt
+    };
+    
+    console.log("🎬 SAVED YouTube URL for later:", savedYouTubeUrl);
     
     if (debugMode) {
       console.log("🎵 Starting TTS:", { text, voice: voiceName, url: ttsUrl });
@@ -242,51 +254,145 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
 
     // Play TTS and hide after duration (покращений на основі donatello.to)
     audioRef.current = new Audio(ttsUrl);
-    audioRef.current.volume = loudness[(widgetConfig.loudness || 5) as keyof typeof loudness];
+    audioRef.current.volume = 0.9; // Max volume for testing
     
-    const cleanup = () => {
-      console.log("🔇 Hiding donation and processing next");
-      clearAll();
+    // Simple cleanup when TTS finishes
+    const handleTTSFinished = () => {
+      console.log("🎵 TTS completed, hiding donation");
       
-      // Process next after delay як у donatello.to
-      setTimeout(processNextDonation, 2000);
+      // Hide donation and process next
+      setTimeout(() => {
+        clearAll();
+        setTimeout(processNextDonation, 2000);
+      }, 1000);
     };
     
-    displayTimeoutRef.current = setTimeout(cleanup, DISPLAY_DURATION);
-    cleanupFunctionsRef.current.push(() => {
-      if (displayTimeoutRef.current) {
-        clearTimeout(displayTimeoutRef.current);
-      }
-    });
+    // Remove fixed timeout - rely on TTS completion instead
+    // displayTimeoutRef.current = setTimeout(cleanup, DISPLAY_DURATION);
+    // cleanupFunctionsRef.current.push(() => {
+    //   if (displayTimeoutRef.current) {
+    //     clearTimeout(displayTimeoutRef.current);
+    //   }
+    // });
     
     // Try to play audio як у donatello.to
     if (audioRef.current) {
       const promise = audioRef.current.play();
       if (promise) {
         promise.then(() => {
-          if (debugMode) console.log("🎵 TTS started playing");
+          console.log("🎵 TTS STARTED playing");
         }).catch(error => {
           console.warn("⚠️ Audio autoplay blocked:", error);
+          
+          // Fallback - try to send YouTube signal after delay
+          setTimeout(() => {
+            console.log("🎬 FALLBACK - sending YouTube signal due to autoplay block");
+            
+            if (savedYouTubeUrl) {
+              const youtubeSignal = {
+                action: 'START_VIDEO',
+                timestamp: Date.now(),
+                videoData: {
+                  identifier: savedDonationData.identifier,
+                  nickname: savedDonationData.nickname,
+                  message: savedDonationData.message,
+                  amount: savedDonationData.amount,
+                  youtube_url: savedYouTubeUrl,
+                  createdAt: savedDonationData.createdAt
+                }
+              };
+              
+              localStorage.setItem('kitsune-youtube-signal', JSON.stringify(youtubeSignal));
+              window.dispatchEvent(new StorageEvent('storage', {
+                key: 'kitsune-youtube-signal',
+                newValue: JSON.stringify(youtubeSignal),
+                storageArea: localStorage
+              }));
+            }
+            
+            handleTTSFinished();
+          }, 3000);
         });
       }
       
-      // Cleanup when audio ends
-      audioRef.current.onended = () => {
-        if (debugMode) console.log("🎵 TTS finished");
-      };
+      // Handle TTS completion and YouTube signal
+      audioRef.current.addEventListener('ended', () => {
+        console.log("🎵 TTS FINISHED!");
+        
+        // Use SAVED YouTube URL (not data which might be null)
+        if (savedYouTubeUrl) {
+          console.log("🎬 SENDING YouTube signal:", savedYouTubeUrl);
+          
+          const youtubeSignal = {
+            action: 'START_VIDEO',
+            timestamp: Date.now(),
+            videoData: {
+              identifier: savedDonationData.identifier,
+              nickname: savedDonationData.nickname,
+              message: savedDonationData.message,
+              amount: savedDonationData.amount,
+              youtube_url: savedYouTubeUrl,
+              createdAt: savedDonationData.createdAt
+            }
+          };
+          
+          // Set in localStorage and dispatch event
+          localStorage.setItem('kitsune-youtube-signal', JSON.stringify(youtubeSignal));
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'kitsune-youtube-signal',
+            newValue: JSON.stringify(youtubeSignal),
+            storageArea: localStorage
+          }));
+          
+          console.log("🎬 YouTube signal SENT successfully!");
+        } else {
+          console.log("❌ NO saved YouTube URL found!");
+        }
+        
+        // Finish donation
+        handleTTSFinished();
+      });
       
-      audioRef.current.onerror = () => {
-        console.warn("⚠️ TTS audio error");
-      };
+      audioRef.current.addEventListener('error', () => {
+        console.warn("⚠️ TTS ERROR - using fallback");
+        
+        // Use SAVED YouTube URL (not data which might be null)
+        if (savedYouTubeUrl) {
+          console.log("🎬 SENDING YouTube signal (ERROR fallback)");
+          
+          const youtubeSignal = {
+            action: 'START_VIDEO',
+            timestamp: Date.now(),
+            videoData: {
+              identifier: savedDonationData.identifier,
+              nickname: savedDonationData.nickname,
+              message: savedDonationData.message,
+              amount: savedDonationData.amount,
+              youtube_url: savedYouTubeUrl,
+              createdAt: savedDonationData.createdAt
+            }
+          };
+          
+          localStorage.setItem('kitsune-youtube-signal', JSON.stringify(youtubeSignal));
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'kitsune-youtube-signal',
+            newValue: JSON.stringify(youtubeSignal),
+            storageArea: localStorage
+          }));
+        }
+        
+        // Longer delay for error case
+        setTimeout(() => {
+          handleTTSFinished();
+        }, 2000);
+      });
     }
     
-    cleanupFunctionsRef.current.push(cleanup);
-    
-    // Safety timeout
+    // Safety timeout - simple fallback
     const safetyTimeout = setTimeout(() => {
-      console.log("⏰ Safety timeout - finishing donation");
-      finishDonation();
-    }, DISPLAY_DURATION + 2000);
+      console.log("⏰ SAFETY TIMEOUT - forcing cleanup");
+      handleTTSFinished();
+    }, 20000); // 20 second safety timeout
     
     cleanupFunctionsRef.current.push(() => clearTimeout(safetyTimeout));
     
@@ -391,12 +497,17 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
         }
       });
 
-      // Handle YouTube donation events (show notification without video)
+      // Handle YouTube donation events (show notification, then signal YouTube widget)
       eventSource.addEventListener("youtube-video", (event: MessageEvent) => {
         try {
           const payload: EventPayload = JSON.parse(event.data);
-          console.log("🎬 Received YouTube donation (showing as regular):", payload);
+          console.log("🎬 Received YouTube donation (showing notification first):", payload);
+          
+          // Show donation notification first
           enqueueDonation(payload);
+          
+          // YouTube signal will be sent after TTS finishes (handled in audioRef.onended)
+          
           } catch (err) {
           console.error("❌ Failed to parse YouTube event:", err);
         }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthSession } from "@/lib/auth";
+
 import { appendDonationEvent } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
       monoComment: `YouTube video: ${message}`,
       jarTitle: null,
       createdAt: new Date(),
+      cleared: false, // Default value for new donations
+      videoStatus: null, // Default video status
     });
 
     console.log("YouTube video donation created:", {

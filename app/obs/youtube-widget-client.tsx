@@ -2,20 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createEventSource } from "@/lib/fetch";
-import dynamic from "next/dynamic";
-
-// Динамічний імпорт react-player для оптимізації
-const ReactPlayer = dynamic(() => import("react-player"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-black text-white">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-        <p className="text-sm">Завантаження плеєра...</p>
-      </div>
-    </div>
-  ),
-}) as any;
 
 // =============================================
 // TYPES & INTERFACES
@@ -58,15 +44,17 @@ type PlayerState = "idle" | "loading" | "playing" | "error" | "ended";
 
 const DEFAULT_SETTINGS: YouTubeSettings = {
   maxDurationMinutes: 5,
-  volume: 80, // react-player використовує значення 0-100
+  volume: 50,
   showClipTitle: true,
   showDonorName: true,
-  showControls: true, // Завжди показувати контроли
+  showControls: true,
   minLikes: 0,
   minViews: 0,
   minComments: 0,
   showImmediately: false
 };
+
+
 
 // =============================================
 // MAIN COMPONENT
@@ -74,7 +62,7 @@ const DEFAULT_SETTINGS: YouTubeSettings = {
 
 export function YouTubeWidgetClient({ 
   streamerId, 
-  token, 
+  token: _token, 
   settings = DEFAULT_SETTINGS 
 }: YouTubeWidgetProps) {
   
@@ -82,21 +70,29 @@ export function YouTubeWidgetClient({
   // STATE
   // =============================================
   
+  // Connection state
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
-  const [playerState, setPlayerState] = useState<PlayerState>("idle");
+  const eventSourceRef = useRef<EventSource | null>(null);
+  
+  // Current video state (queue is now managed by API)
   const [currentVideo, setCurrentVideo] = useState<YouTubeEvent | null>(null);
-  const [videoTitle, setVideoTitle] = useState<string>("");
-  const [debugMode, setDebugMode] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Player state
+  const [playerState, setPlayerState] = useState<PlayerState>("idle");
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [videoTitle, setVideoTitle] = useState("");
   const [hasPlayerError, setHasPlayerError] = useState(false);
   
-  // =============================================
-  // REFS
-  // =============================================
+  // No more localStorage - everything is synced with database via API
+
+
   
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const videoQueueRef = useRef<YouTubeEvent[]>([]);
-  const videoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Player container ref
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Timeouts and intervals
+  const finishTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
   
@@ -119,12 +115,377 @@ export function YouTubeWidgetClient({
   }, []);
 
   // =============================================
-  // REACT-PLAYER BASED VIDEO MANAGEMENT
+  // OBS DETECTION & UTILITIES
   // =============================================
   
-  // react-player не потребує окремого завантаження API
-  // Всі операції виконуються через компонент
+  const isOBSBrowser = useCallback((): boolean => {
+    if (typeof window === 'undefined') return false;
+
+    // Check user agent for CEF or OBS
+    const userAgent = navigator.userAgent.toLowerCase();
+    if (userAgent.includes('cef') || userAgent.includes('obs')) {
+      return true;
+    }
+
+    // Check for OBS-specific properties
+    // @ts-expect-error - OBS Studio API not in standard window types
+    if (window.obsstudio) {
+      return true;
+    }
+
+    // Check URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('obs') === 'true') {
+      return true;
+    }
+
+    // Check window properties typical for CEF
+    if (window.outerWidth === window.innerWidth && window.outerHeight === window.innerHeight) {
+      return true;
+    }
+
+    return false;
+  }, []);
+
+  const simulateUserInteraction = useCallback(() => {
+    try {
+      // Create and dispatch click event
+      const clickEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window
+      });
+      document.body.dispatchEvent(clickEvent);
+
+      // Create and dispatch touch event for mobile compatibility
+      const touchEvent = new TouchEvent('touchend', {
+        bubbles: true,
+        cancelable: true
+      });
+      document.body.dispatchEvent(touchEvent);
+
+      log('🎮 Simulated user interaction for autoplay');
+    } catch (error) {
+      logError('Failed to simulate user interaction:', error);
+    }
+  }, [log, logError]);
+
+  const enableAudioContext = useCallback(async () => {
+    try {
+      if (typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const audioContext = new AudioContextClass();
+        
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+          log('🔊 AudioContext resumed for OBS');
+        }
+      }
+    } catch (error) {
+      logError('Failed to enable AudioContext:', error);
+    }
+  }, [log, logError]);
+
+  // Initialize OBS mode if detected
+  useEffect(() => {
+    const initOBSMode = async () => {
+      const obsDetected = isOBSBrowser();
+      
+      if (obsDetected) {
+        log("🎬 OBS Browser Source detected! Initializing OBS mode...");
+        
+        // Simulate user interaction for autoplay
+        simulateUserInteraction();
+        
+        // Enable AudioContext for sound
+        await enableAudioContext();
+        
+        // Override Page Visibility API for OBS
+        try {
+          Object.defineProperty(document, 'hidden', {
+            get: () => false,
+            configurable: true
+          });
+          
+          Object.defineProperty(document, 'visibilityState', {
+            get: () => 'visible',
+            configurable: true
+          });
+          
+          log("👁️ Overrode Visibility API for OBS");
+        } catch (error) {
+          logError("Failed to override Visibility API:", error);
+        }
+        
+        // Add OBS-specific CSS class
+        document.body.classList.add('obs-browser');
+        
+        log("✅ OBS mode fully initialized");
+      }
+    };
+    
+    initOBSMode();
+  }, [isOBSBrowser, simulateUserInteraction, enableAudioContext, log, logError]);
+
+  // Load queue from API on startup
+  useEffect(() => {
+    const loadQueueFromAPI = async () => {
+      try {
+        log("🔄 Loading queue from API on startup");
+        const response = await fetch('/api/youtube/queue');
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Check if there's a currently playing video
+          if (data.currentlyPlaying) {
+            log("🔄 Found currently playing video:", data.currentlyPlaying.identifier);
+            setCurrentVideo(data.currentlyPlaying);
+            setVideoTitle(`Video from ${data.currentlyPlaying.nickname}`);
+          } else {
+            log("🔄 No currently playing video, will check for pending videos");
+          }
+        } else {
+          logError("Failed to load queue from API:", response.status);
+        }
+      } catch (error) {
+        logError("Error loading queue from API:", error);
+      }
+    };
+    
+    loadQueueFromAPI();
+  }, [log, logError]);
   
+
+  
+
+  
+  // =============================================
+  // CODEPEN PROXY METHOD (ONLY METHOD)
+  // =============================================
+  
+  const createCodePenPlayer = useCallback((videoId: string) => {
+    log(`Creating CodePen proxy player for video: ${videoId} (OBS mode: ${isOBSBrowser()})`);
+    
+    if (!playerContainerRef.current) {
+      logError("Player container not available");
+      return;
+    }
+    
+    // Clear existing content
+    playerContainerRef.current.innerHTML = '';
+
+    // Check if we're in OBS mode for special handling
+    const obsMode = isOBSBrowser();
+
+    // Create iframe using CodePen proxy to bypass YouTube restrictions
+    const iframe = document.createElement('iframe');
+    const params = new URLSearchParams({
+      v: videoId,
+      autoplay: '1',
+      controls: settings.showControls ? '1' : '0',
+      disablekb: '1',
+      fs: '0',
+      iv_load_policy: '3',
+      modestbranding: '1',
+      playsinline: '1',
+      rel: '0',
+      showinfo: '0',
+      start: '0',
+      mute: '0', // Don't mute, we want audio
+      // Audio track preferences - force original audio
+      hl: 'und', // Undefined language to avoid auto-translation
+      cc_lang_pref: 'und', // Prefer undefined/original captions
+      cc_load_policy: '0', // Don't auto-load captions
+      // Additional parameters for OBS compatibility
+      ...(obsMode && {
+        origin: window.location.origin,
+        widget_referrer: window.location.origin,
+        html5: '1',
+        wmode: 'opaque'
+      })
+    });
+
+    iframe.src = `https://cdpn.io/pen/debug/oNPzxKo?${params.toString()}`;
+    iframe.width = '100%';
+    iframe.height = '100%';
+    iframe.style.border = 'none';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    
+    // Enhanced iframe attributes for OBS
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    iframe.allowFullscreen = !obsMode; // Disable fullscreen in OBS
+    
+    if (obsMode) {
+      // Additional attributes for OBS/CEF compatibility
+      iframe.setAttribute('loading', 'eager');
+      iframe.setAttribute('importance', 'high');
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation allow-forms');
+    }
+
+    // Add error handling
+    iframe.onerror = () => {
+      logError("CodePen proxy failed to load");
+      handleVideoBlockedCompletely(videoId);
+    };
+
+    iframe.onload = () => {
+      log("CodePen proxy loaded successfully");
+      setPlayerState("playing");
+      setIsPlayerReady(true);
+      setIsPlaying(true);
+      scheduleVideoEnd();
+      
+      // Additional user interaction simulation for OBS after iframe loads
+      if (obsMode) {
+        setTimeout(() => {
+          simulateUserInteraction();
+          log("🎮 Additional user interaction simulated for OBS after iframe load");
+        }, 500);
+      }
+    };
+
+    playerContainerRef.current.appendChild(iframe);
+  }, [settings, isOBSBrowser, simulateUserInteraction, log, logError]);
+
+
+
+  // =============================================
+  // ERROR HANDLING
+  // =============================================
+  
+  const handleVideoError = useCallback((videoId: string, error?: any) => {
+    log(`🔄 Handling video error for: ${videoId}`, error);
+    
+    setHasPlayerError(true);
+    setPlayerState("error");
+    
+    // Try CodePen proxy method first (best for bypassing restrictions)
+    setTimeout(() => {
+      createCodePenPlayer(videoId);
+    }, 1000);
+  }, [log, createCodePenPlayer]);
+
+  const handleVideoBlockedCompletely = useCallback((videoId: string) => {
+    log(`🚫 Video completely blocked: ${videoId}`);
+    
+    if (!playerContainerRef.current) return;
+
+    // Show message and link to open in YouTube
+    playerContainerRef.current.innerHTML = `
+      <div style="
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #ff0000, #cc0000);
+        color: white;
+        text-align: center;
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        box-sizing: border-box;
+      ">
+        <div style="font-size: 2rem; margin-bottom: 10px;">🚫</div>
+        <div style="font-size: 1.2rem; margin-bottom: 10px;">Відео не може бути відтворене</div>
+        <div style="font-size: 0.9rem; margin-bottom: 20px; opacity: 0.9;">
+          Власник заборонив вбудовування
+        </div>
+        <a 
+          href="https://www.youtube.com/watch?v=${videoId}" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          style="
+            background: white;
+            color: #ff0000;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+          "
+          onmouseover="this.style.background='#f0f0f0'"
+          onmouseout="this.style.background='white'"
+        >
+          Відкрити на YouTube
+        </a>
+      </div>
+    `;
+    
+    setPlayerState("error");
+    setIsPlaying(false);
+    
+    // Auto finish after showing message
+    setTimeout(() => {
+      finishVideo();
+      // Start next video in queue
+      setTimeout(() => processQueue(), 600);
+    }, 5000);
+  }, [log]);
+
+  // =============================================
+  // VIDEO LIFECYCLE
+  // =============================================
+  
+  const scheduleVideoEnd = useCallback(() => {
+    if (finishTimeoutRef.current) {
+      clearTimeout(finishTimeoutRef.current);
+    }
+    
+    const duration = settings.maxDurationMinutes * 60 * 1000;
+    log(`Scheduling video end in ${duration}ms`);
+    
+    finishTimeoutRef.current = setTimeout(() => {
+      log("Video duration limit reached - finishing");
+      finishVideo();
+      // Start next video in queue
+      setTimeout(() => processQueue(), 600);
+    }, duration);
+  }, [settings.maxDurationMinutes, log]);
+  
+  const finishVideo = useCallback(async () => {
+    log("🛑 Finishing current video");
+    log("🛑 Current video before finish:", currentVideo ? `${currentVideo.identifier} (${currentVideo.nickname})` : "none");
+    
+    if (finishTimeoutRef.current) {
+      clearTimeout(finishTimeoutRef.current);
+      finishTimeoutRef.current = null;
+    }
+
+    // Update status in database if we have a current video
+    if (currentVideo) {
+      try {
+        await fetch('/api/youtube/queue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            identifier: currentVideo.identifier,
+            status: 'completed'
+          })
+        });
+        log("🛑 Updated video status to completed in database:", currentVideo.identifier);
+      } catch (error) {
+        logError("Failed to update video status in database:", error);
+      }
+    }
+    
+    log("🛑 Clearing currentVideo and player state");
+    setCurrentVideo(null);
+    setPlayerState("idle");
+    setIsPlaying(false);
+    setIsPlayerReady(false);
+    setHasPlayerError(false);
+    setVideoTitle("");
+    
+    // Clear player container (stops CodePen iframe)
+    if (playerContainerRef.current) {
+      playerContainerRef.current.innerHTML = '';
+    }
+    
+    log("🛑 Video finished - ready for next video");
+  }, [log, logError, currentVideo]);
+    
   // =============================================
   // VIDEO VALIDATION
   // =============================================
@@ -141,595 +502,401 @@ export function YouTubeWidgetClient({
       }
       
       const data = await response.json();
-      const title = data.title || "Unknown Video";
-      setVideoTitle(title);
-      
-      log(`Video validated: "${title}"`);
+      log(`Video validation successful: ${data.title}`);
       return true;
     } catch (error) {
       logError("Video validation error:", error);
-      setVideoTitle("YouTube Video");
-      return true; // Continue anyway
-    }
-  }, [log, logError]);
-  
-  // =============================================
-  // PLAYER MANAGEMENT
-  // =============================================
-  
-  const clearPlayer = useCallback(() => {
-    log("Clearing ReactPlayer");
-    
-    // react-player cleanup відбувається автоматично через React lifecycle
-    setPlayerState("idle");
-    setIsPlayerReady(false);
-    setHasPlayerError(false);
-    setCurrentVideo(null);
-    setVideoTitle("");
-  }, [log]);
-  
-    // Fallback для заблокованих відео
-  const handleVideoError = useCallback((videoId: string, error?: any) => {
-    log(`🔄 Handling video error for: ${videoId}`, error);
-    
-    setHasPlayerError(true);
-    setPlayerState("error");
-    
-    // Автоматичне завершення буде оброблено через useEffect
-  }, [log]);
-
-  const createReactPlayer = useCallback(async (videoId: string): Promise<boolean> => {
-    log(`🎬 Creating ReactPlayer for video: ${videoId}`);
-    
-    try {
-              setPlayerState("loading");
-      setIsPlayerReady(false);
-      setHasPlayerError(false);
-      
-      const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-      log(`📺 Video URL: ${videoUrl}`);
-      log(`🎛️ Settings:`, {
-        volume: settings.volume,
-        showControls: settings.showControls,
-        maxDuration: settings.maxDurationMinutes
-      });
-      
-      // Додаємо timeout для випадку, коли відео довго не завантажується
-      setTimeout(() => {
-        logError("⏰ Video loading timeout - forcing skip");
-        setHasPlayerError(true);
-        setPlayerState("error");
-      }, 15000); // 15 секунд timeout
-      
-      return true;
-    } catch (error) {
-      logError("❌ Failed to prepare ReactPlayer:", error);
-      setHasPlayerError(true);
-      setPlayerState("error");
       return false;
     }
-  }, [log, logError, settings]);
-  
+  }, [log, logError]);
+
   // =============================================
-  // VIDEO LIFECYCLE
+  // QUEUE MANAGEMENT
   // =============================================
   
-  const startVideo = useCallback(async (video: YouTubeEvent) => {
+  const processQueue = useCallback(async () => {
+    log(`🔄 processQueue called - Processing: ${isProcessingRef.current}, CurrentVideo: ${!!currentVideo}`);
+
     if (isProcessingRef.current) {
-      log("Already processing, ignoring");
+      log("🔄 Already processing, skipping");
       return;
     }
-    
-    log("Starting video:", { nickname: video.nickname, amount: video.amount });
-    
+
+    if (currentVideo) {
+      log("🔄 Video currently playing, skipping");
+      return;
+    }
+
+    log("🎬 Getting next video from API queue");
     isProcessingRef.current = true;
-    setCurrentVideo(video);
-    setPlayerState("loading");
-    
-    const videoUrl = video.youtube_url || video.videoUrl;
-    if (!videoUrl) {
-      logError("No video URL provided");
-      finishVideo();
-      return;
+
+    try {
+      // Get next video from API
+      const response = await fetch('/api/youtube/queue', {
+        method: 'PATCH'
+      });
+
+      if (!response.ok) {
+        throw new Error(`API responded with ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.nextVideo) {
+        log("🔄 No videos in queue");
+        isProcessingRef.current = false;
+        return;
+      }
+
+      const nextVideo = data.nextVideo;
+      const videoUrl = nextVideo.youtube_url;
+
+      if (!videoUrl) {
+        logError("No video URL for next item:", nextVideo);
+        isProcessingRef.current = false;
+        return;
+      }
+
+      const videoId = extractVideoId(videoUrl);
+      if (!videoId) {
+        logError("Could not extract video ID from:", videoUrl);
+        isProcessingRef.current = false;
+        return;
+      }
+      
+      log(`🎬 PLAYING: ${videoId} from ${nextVideo.nickname}`);
+      log(`🎬 SETTING currentVideo:`, {
+        identifier: nextVideo.identifier,
+        nickname: nextVideo.nickname,
+        videoUrl: videoUrl
+      });
+      
+      setCurrentVideo(nextVideo);
+      setVideoTitle(`Video from ${nextVideo.nickname}`);
+      
+      // Always use CodePen proxy player
+      try {
+        await validateVideo(videoId);
+        log("🎬 Using CodePen proxy player");
+        createCodePenPlayer(videoId);
+      } catch (error) {
+        logError("Video validation failed or player creation error:", error);
+        setHasPlayerError(true);
+        // Automatically finish this video if there's an error to move to the next
+        setTimeout(() => finishVideo(), 2000);
+      }
+    } catch (error) {
+      logError("Failed to get next video from API:", error);
+    } finally {
+      isProcessingRef.current = false;
     }
-    
-    const videoId = extractVideoId(videoUrl);
-    if (!videoId) {
-      logError("Invalid video URL:", videoUrl);
-      finishVideo();
-      return;
-    }
-    
-    // Validate video
-    await validateVideo(videoId);
-    
-    // Create player
-    const success = await createReactPlayer(videoId);
-    if (!success) {
-      log("❌ Failed to prepare ReactPlayer");
-      handleVideoError(videoId, "Failed to prepare player");
-      return;
-    }
-    
-    // Set timer
-    const timeLimit = settings.maxDurationMinutes * 60 * 1000;
-    videoTimeoutRef.current = setTimeout(() => {
-      log("Video time limit reached");
-      finishVideo();
-    }, timeLimit);
-    
-  }, [log, logError, extractVideoId, validateVideo, createReactPlayer, handleVideoError, settings.maxDurationMinutes]);
+  }, [isProcessingRef, currentVideo, log, logError, extractVideoId, validateVideo, createCodePenPlayer, finishVideo]);
   
-  const finishVideo = useCallback(() => {
-    log("Finishing video");
-    
-    // Clear timeout
-      if (videoTimeoutRef.current) {
-        clearTimeout(videoTimeoutRef.current);
-      videoTimeoutRef.current = null;
-    }
-    
-    // Clear player
-    clearPlayer();
-    
-    // Reset state
-    setCurrentVideo(null);
-    setVideoTitle("");
-    setPlayerState("idle");
-    isProcessingRef.current = false;
-    
-    // Process next video after delay
-    setTimeout(() => {
-      processQueue();
-    }, 2000);
-    
-  }, [log, clearPlayer]);
-  
-  const processQueue = useCallback(() => {
-    if (isProcessingRef.current) {
-      return;
-    }
-    
-    const nextVideo = videoQueueRef.current.shift();
-    if (nextVideo) {
-      log("Processing next video from queue");
-      startVideo(nextVideo);
-    } else {
-      log("Queue empty");
-    }
-  }, [startVideo, log]);
-  
-  const enqueueVideo = useCallback((video: YouTubeEvent) => {
-    log("Adding video to queue:", { nickname: video.nickname, amount: video.amount });
-    videoQueueRef.current.push(video);
-    
-    if (!isProcessingRef.current) {
-      processQueue();
-    }
-  }, [log, processQueue]);
+  // Video validation is now above processQueue
   
   // =============================================
-  // SSE CONNECTION
+  // SERVER-SENT EVENTS
   // =============================================
   
   const connectSSE = useCallback(() => {
-    // Перевіряємо стан існуючого з'єднання
-    if (eventSourceRef.current?.readyState === EventSource.OPEN) {
-      log("SSE already connected and active");
-      setConnectionState("connected");
+    if (!streamerId) {
+      logError("No streamer ID provided");
       return;
     }
     
-    // Закриваємо тільки якщо з'єднання не активне
-    if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) {
-      log("Closing existing SSE connection");
+    if (eventSourceRef.current) {
       eventSourceRef.current.close();
-      eventSourceRef.current = null;
     }
 
     setConnectionState("connecting");
-    
-    const streamParam = streamerId ? `&streamerId=${encodeURIComponent(streamerId)}` : '';
-    const url = `/api/stream?ts=${Date.now()}${streamParam}`;
-    
-    log("Connecting to SSE:", url);
+    log(`Connecting to SSE for streamer: ${streamerId}`);
     
     try {
-      const eventSource = createEventSource(url);
+      const eventSource = createEventSource(`/api/stream?streamerId=${streamerId}`);
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {
-        log("SSE Connected");
+        log("SSE connection opened");
         setConnectionState("connected");
+
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = null;
+        }
       };
 
       eventSource.onerror = (error) => {
-        logError("SSE Error:", error);
+        logError("SSE connection error:", error);
         setConnectionState("error");
         
-        // Reconnect after delay
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-        }
+        eventSource.close();
         
+        if (!reconnectTimeoutRef.current) {
         reconnectTimeoutRef.current = setTimeout(() => {
-          log("Reconnecting SSE...");
+            log("Attempting to reconnect...");
           connectSSE();
-        }, 3000);
-      };
-
-      eventSource.addEventListener("youtube-video", (event: MessageEvent) => {
-        try {
-          const payload = JSON.parse(event.data);
-          log("Received YouTube event:", payload);
-          
-          // Перевіряємо всі можливі поля для URL
-          const videoUrl = payload.youtube_url || payload.videoUrl || payload.youtubeUrl || payload.url;
-          
-          if (!videoUrl) {
-            logError("No video URL in payload. Available fields:", Object.keys(payload));
-            return;
-          }
-          
-          // Створюємо правильний event object
-          const youtubeEvent: YouTubeEvent = {
-            identifier: payload.identifier || "unknown-" + Date.now(),
-            nickname: payload.nickname || "Unknown User",
-            message: payload.message || "",
-            amount: payload.amount || 0,
-            createdAt: payload.createdAt || new Date().toISOString(),
-            youtube_url: videoUrl,
-            videoUrl: videoUrl
-          };
-          
-          log("Processed event:", { nickname: youtubeEvent.nickname, amount: youtubeEvent.amount, url: videoUrl });
-          enqueueVideo(youtubeEvent);
-        } catch (err) {
-          logError("Failed to parse YouTube event:", err);
+          }, 5000);
         }
-      });
-
-      eventSource.addEventListener("ping", (event: MessageEvent) => {
-        if (debugMode) log("Ping received:", event.data);
-      });
+      };
+      
+      // НЕ слухаємо SSE події автоматично - чекаємо сигнал від donation widget'у
+      log("🎬 YouTube widget ready, waiting for signals from donation widget");
 
     } catch (error) {
-      logError("Failed to create EventSource:", error);
+      logError("Failed to create SSE connection:", error);
       setConnectionState("error");
     }
-  }, [streamerId, log, logError, enqueueVideo, debugMode]);
+  }, [streamerId, log, logError]);
   
   // =============================================
-  // INITIALIZATION
+  // EFFECTS
   // =============================================
   
+  // Connect to SSE when component mounts
   useEffect(() => {
-    // Read debug mode from URL
-    const url = new URL(window.location.href);
-    const isDebug = url.searchParams.get("debug") === "true";
-    setDebugMode(isDebug);
-    
-    log("YouTube Widget initialized with settings:", settings);
-    if (isDebug) {
-      log("🔧 Debug mode enabled");
-      log("📋 Settings breakdown:", {
-        volume: settings.volume,
-        showControls: settings.showControls,
-        showClipTitle: settings.showClipTitle,
-        showDonorName: settings.showDonorName,
-        maxDurationMinutes: settings.maxDurationMinutes
-      });
-    }
-  }, [log, settings]);
-
-  // Debug для стану компонента
-  useEffect(() => {
-    if (debugMode) {
-      log("🔄 State change:", {
-        playerState,
-        isPlayerReady,
-        hasPlayerError,
-        currentVideo: currentVideo ? {
-          nickname: currentVideo.nickname,
-          videoUrl: currentVideo.youtube_url || currentVideo.videoUrl
-        } : null
-      });
-    }
-  }, [debugMode, playerState, isPlayerReady, hasPlayerError, currentVideo, log]);
-
-  // Автоматичне завершення відео при помилці
-  useEffect(() => {
-    if (hasPlayerError && currentVideo) {
-      log("🔄 Video error detected, auto-finishing in 3 seconds");
-      const timeout = setTimeout(() => {
-        log("🏁 Auto-finishing error video");
-        finishVideo();
-      }, 3000);
-
-      return () => clearTimeout(timeout);
-    }
-  }, [hasPlayerError, currentVideo, finishVideo, log]);
-  
-  useEffect(() => {
-    // Тільки ініціалізуємо SSE якщо його ще немає
-    if (!eventSourceRef.current) {
-      log("Initializing SSE connection");
-    connectSSE();
-    } else {
-      log("SSE already exists, keeping connection");
+    if (streamerId) {
+      connectSSE();
     }
     
     return () => {
-      // В development режимі не закриваємо з'єднання через Fast Refresh
-      if (process.env.NODE_ENV === 'production') {
-        log("Production cleanup - closing SSE connection");
-        
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
-          eventSourceRef.current = null;
       }
-        
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
-          reconnectTimeoutRef.current = null;
-      }
-        
-      if (videoTimeoutRef.current) {
-        clearTimeout(videoTimeoutRef.current);
-          videoTimeoutRef.current = null;
-        }
-        
-        clearPlayer();
-      } else {
-        log("Development mode - preserving connections");
       }
     };
-  }, []); // Без залежностей для стабільності
+  }, [streamerId, connectSSE]);
+  
+  // Listen for signals from donation widget
+  useEffect(() => {
+    log("🎬 YouTube widget initialized, setting up signal listeners");
+    
+
+
+    // Simple function to check for existing signal on mount
+    const checkExistingSignal = () => {
+      try {
+        const existingSignal = localStorage.getItem('kitsune-youtube-signal');
+        if (existingSignal) {
+          const signal = JSON.parse(existingSignal);
+          if (signal.action === 'START_VIDEO' && signal.videoData) {
+            log("🎬 FOUND existing signal on startup");
+            handleStorageChange({ key: 'kitsune-youtube-signal', newValue: existingSignal } as StorageEvent);
+          }
+        }
+      } catch (error) {
+        logError("Error checking existing signal:", error);
+      }
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'kitsune-youtube-signal' && event.newValue) {
+        try {
+          const signal = JSON.parse(event.newValue);
+          
+          if (signal.action === 'START_VIDEO' && signal.videoData) {
+            log("🎬 RECEIVED YouTube signal:", signal.videoData.youtube_url);
+            
+            // Add video to queue immediately
+            const youtubeEvent: YouTubeEvent = {
+              identifier: signal.videoData.identifier,
+              nickname: signal.videoData.nickname,
+              message: signal.videoData.message,
+              amount: signal.videoData.amount,
+              createdAt: signal.videoData.createdAt,
+              youtube_url: signal.videoData.youtube_url,
+              videoUrl: signal.videoData.youtube_url
+            };
+            
+            // Video will be picked up by the API polling system
+            log("🎬 Video signal received - will be processed by API polling");
+            
+            // Clear signal
+            localStorage.removeItem('kitsune-youtube-signal');
+          }
+        } catch (error) {
+          logError("YouTube signal parse error:", error);
+        }
+      }
+    };
+    
+    // Check for existing signal on mount
+    checkExistingSignal();
+    
+    // Just listen for SSE signals - no more localStorage control
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [streamerId, log, logError]);
+  
+  // Poll API for queue changes and sync status
+  useEffect(() => {
+    const checkQueueAndSync = async () => {
+      try {
+        const response = await fetch('/api/youtube/queue');
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Check if our current video status needs to be updated
+          if (currentVideo) {
+            const currentVideoInAPI = data.queue.find((v: any) => v.identifier === currentVideo.identifier);
+            if (currentVideoInAPI && currentVideoInAPI.status === 'completed') {
+              log("🔄 Current video marked as completed in API, finishing...");
+              await finishVideo();
+              return;
+            }
+          }
+          
+          // If no video is playing and there are pending videos, start the next one
+          if (!currentVideo && data.queue.some((v: any) => v.status === 'pending')) {
+            log("🔄 Found pending videos, processing queue...");
+            await processQueue();
+          }
+        }
+      } catch (error) {
+        logError("Error checking queue sync:", error);
+      }
+    };
+
+    // Check immediately
+    checkQueueAndSync();
+    
+    // Then check every 3 seconds for real-time sync
+    const interval = setInterval(checkQueueAndSync, 3000);
+    
+    return () => clearInterval(interval);
+  }, [currentVideo, processQueue, finishVideo, log, logError]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (finishTimeoutRef.current) {
+        clearTimeout(finishTimeoutRef.current);
+      }
+      // CodePen iframe cleanup happens automatically when component unmounts
+    };
+  }, []);
   
   // =============================================
   // RENDER
   // =============================================
 
   return (
-    <div className="pointer-events-none fixed inset-0 select-none" suppressHydrationWarning>
-      {/* Debug Panel */}
-      {debugMode && (
-        <div className="pointer-events-auto fixed top-4 left-4 z-50 bg-black/90 text-white p-4 rounded text-sm max-w-xs space-y-2">
-          <div><strong>🎬 YouTube Debug (ReactPlayer)</strong></div>
-          <div>Connection: <span className={connectionState === 'connected' ? 'text-green-400' : 'text-red-400'}>{connectionState}</span></div>
-          <div>Player Ready: <span className={isPlayerReady ? 'text-green-400' : 'text-red-400'}>{isPlayerReady ? "Yes" : "No"}</span></div>
-          <div>Player Error: <span className={hasPlayerError ? 'text-red-400' : 'text-green-400'}>{hasPlayerError ? "Yes" : "No"}</span></div>
-          <div>Player: <span className={playerState === 'playing' ? 'text-green-400' : 'text-yellow-400'}>{playerState}</span></div>
-          <div>Queue: {videoQueueRef.current.length}</div>
-          <div>Current: {currentVideo?.nickname || "None"}</div>
-          {currentVideo && (
-            <div className="text-xs opacity-75">
-              VideoID: {extractVideoId(currentVideo.youtube_url || currentVideo.videoUrl || '')}
-            </div>
-          )}
-          
-          <button
-            onClick={() => {
-              log("Manual test - Testing Rick Roll");
-              enqueueVideo({
-                identifier: "test-" + Date.now(),
-                nickname: "TestUser",
-                message: "Manual test video",
-                amount: 100,
-                createdAt: new Date().toISOString(),
-                youtube_url: "https://www.youtube.com/watch?v=sTKEC5gEQmA"
-              });
-            }}
-            className="w-full bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-xs"
-          >
-            🧪 Test Video
-          </button>
-          
-          <button
-            onClick={() => {
-              log("Manual SSE reconnect");
-              if (eventSourceRef.current) {
-                eventSourceRef.current.close();
-                eventSourceRef.current = null;
-              }
-              connectSSE();
-            }}
-            className="w-full bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs"
-          >
-            🔄 Force Reconnect
-          </button>
-          
-          <button
-            onClick={() => {
-              log("Current state debug:");
-              console.log("EventSource:", eventSourceRef.current);
-              console.log("Queue:", videoQueueRef.current);
-              console.log("Current video:", currentVideo);
-              console.log("Player state:", playerState);
-            }}
-            className="w-full bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded text-xs"
-          >
-            🐛 Debug State
-          </button>
+    <div className="youtube-widget" style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      background: 'transparent',
+      pointerEvents: 'none',
+      zIndex: 1000
+    }}>
+      
+
+
+            {/* OBS Debug Indicator (only when OBS is detected and debug=true in URL) */}
+      {isOBSBrowser() && new URLSearchParams(window.location.search).get('debug') === 'true' && (
+        <div style={{
+          position: 'fixed',
+          top: '10px',
+          left: '10px',
+          background: 'rgba(0,0,0,0.8)',
+          color: '#00ff00',
+          padding: '8px 12px',
+          borderRadius: '6px',
+          fontSize: '12px',
+          fontFamily: 'monospace',
+          zIndex: 2000,
+          border: '1px solid #00ff00'
+        }}>
+          🎬 OBS MODE ACTIVE
         </div>
       )}
 
-      {/* Video Widget */}
-      {currentVideo && playerState !== "idle" && (
-        <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-[9999] bg-black/90 rounded-lg overflow-hidden">
-          <div style={{ width: '720px' }}>
-            {/* Video Info */}
-            <div className="px-4 pt-2 text-white text-center">
+      {/* Video Title and Donor Name - Above Player */}
+      {currentVideo && (settings.showClipTitle || settings.showDonorName) && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(50% - 285px)', // Above player with proper gap
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '800px',
+          maxWidth: '90vw',
+          textAlign: 'center',
+          zIndex: 1003
+        }}>
+          {settings.showDonorName && (
+            <div style={{
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#ff6b6b',
+              textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+            }}>
+              {currentVideo.nickname} • {currentVideo.amount}₴
+        </div>
+      )}
               {settings.showClipTitle && videoTitle && (
-                <div className="text-sm font-medium truncate leading-tight">
+            <div style={{
+              fontSize: '18px',
+              fontWeight: '500',
+              color: 'white',
+              textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+            }}>
                   {videoTitle}
                 </div>
               )}
-              
-              {settings.showDonorName && currentVideo && (
-                <div className="text-xs text-gray-300 leading-tight">
-                  {currentVideo.nickname}
                 </div>
               )}
-            </div>
-            
-            {/* ReactPlayer Container */}
-        <div className="w-full" style={{ height: '540px' }}>
-              {hasPlayerError ? (
-                <div className="w-full h-full flex items-center justify-center bg-black text-white border-2 border-red-500">
-                  <div className="text-center space-y-4">
-                    <div className="text-red-400 text-4xl">⚠️</div>
-                    <div>
-                      <p className="text-lg font-semibold">Відео недоступне для відтворення</p>
-                      <p className="text-sm opacity-75 mt-1">
-                        Можливо відео приватне або заблоковане
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : playerState === "loading" ? (
-                <div className="w-full h-full flex items-center justify-center bg-black text-white border-2 border-blue-500">
-                  <div className="text-center space-y-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-                    <div>
-                      <p className="text-lg font-semibold">Завантаження відео...</p>
-                      <p className="text-sm opacity-75 mt-1">
-                        {videoTitle || "Підготовка плеєра"}
-                      </p>
-                      {debugMode && (
-                        <p className="text-xs opacity-50 mt-2">
-                          PlayerState: {playerState}, Ready: {isPlayerReady ? "Yes" : "No"}
-                        </p>
-                      )}
-                      <button 
-                        className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors text-sm"
-                        onClick={() => {
-                          log("🔄 Manual skip requested during loading");
-                          finishVideo();
-                        }}
-                      >
-                        Пропустити відео
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="relative w-full h-full">
-                  {(() => {
-                    const videoId = extractVideoId(currentVideo.youtube_url || currentVideo.videoUrl || '');
-                    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-                    
-                    log(`🔍 Processing video: ID=${videoId}, URL=${videoUrl}`);
-                    log(`⚙️ Player props:`, {
-                      url: videoUrl,
-                      playing: true,
-                      controls: settings.showControls,
-                      volume: settings.volume / 100,
-                      muted: true
-                    });
-                    
-                    return (
-                      <ReactPlayer
-                        key={videoId} // Додаємо key для форсування ре-рендеру
-                        url={videoUrl}
-                        playing={true}
-                        controls={settings.showControls}
-                        width="100%"
-                        height="100%"
-                        volume={settings.volume / 100}
-                        muted={true}
-                        light={false}
-                        pip={false}
-                        stopOnUnmount={false}
-                        onReady={() => {
-                          log("✅ ReactPlayer READY callback triggered");
-                          setIsPlayerReady(true);
-                        }}
-                        onStart={() => {
-                          log("✅ ReactPlayer START callback triggered");
-                          setPlayerState("playing");
-                        }}
-                        onPlay={() => {
-                          log("✅ ReactPlayer PLAY callback triggered");
-                          setPlayerState("playing");
-                        }}
-                        onPause={() => {
-                          log("⏸️ ReactPlayer PAUSE callback triggered");
-                        }}
-                        onBuffer={() => {
-                          log("🔄 ReactPlayer BUFFER callback triggered");
-                        }}
-                        onBufferEnd={() => {
-                          log("✅ ReactPlayer BUFFER END callback triggered");
-                        }}
-                        onLoadStart={() => {
-                          log("🔄 ReactPlayer LOAD START callback triggered");
-                          setPlayerState("loading");
-                        }}
-                        onDuration={(duration: number) => {
-                          log(`📏 ReactPlayer DURATION callback: ${duration} seconds`);
-                        }}
-                        onProgress={(state: any) => {
-                          if (state.played > 0) {
-                            log(`📊 ReactPlayer PROGRESS: ${Math.round(state.played * 100)}%`);
-                            if (playerState !== "playing") {
-                              setPlayerState("playing");
-                            }
-                          }
-                        }}
-                        onEnded={() => {
-                          log("🏁 ReactPlayer ENDED callback triggered");
-                          setPlayerState("ended");
-                          finishVideo();
-                        }}
-                        onError={(error: any) => {
-                          logError("❌ ReactPlayer ERROR callback:", error);
-                          const videoId = extractVideoId(currentVideo.youtube_url || currentVideo.videoUrl || '');
-                          handleVideoError(videoId || 'unknown', error);
-                        }}
-                        config={{
-                          youtube: {
-                            playerVars: {
-                              autoplay: 1,
-                              controls: settings.showControls ? 1 : 0,
-                              modestbranding: 1,
-                              rel: 0,
-                              enablejsapi: 1,
-                              iv_load_policy: 3
-                            }
-                          }
-                        }}
+
+      {/* Video Player Container */}
+      {currentVideo && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '800px',
+          height: '450px',
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+          background: '#000',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          border: '2px solid #ff6b6b',
+          boxShadow: '0 0 30px rgba(255, 107, 107, 0.3), 0 20px 40px rgba(0,0,0,0.4)',
+          pointerEvents: 'auto',
+          zIndex: 1002
+        }}>
+          
+          {/* Player Container */}
+          <div 
+            ref={playerContainerRef}
                         style={{
-                          backgroundColor: '#000'
-                        }}
-                      />
-                    );
-                  })()}
-                  
-                  {/* Muted indicator */}
-                  <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
-                    🔇 Відео заглушене для автозапуску
-                  </div>
-                  
-                  {/* Player state indicator */}
-                  {debugMode && (
-                    <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
-                      {playerState} | Ready: {isPlayerReady ? "✅" : "❌"}
+              width: '100%',
+              height: '100%',
+              background: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {!isPlayerReady && playerState === "loading" && (
+              <div style={{
+                color: 'white',
+                textAlign: 'center',
+                fontFamily: 'Arial, sans-serif'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⏳</div>
+                <div>Завантаження відео...</div>
                     </div>
                   )}
-                </div>
-              )}
-          </div>
           </div>
         </div>
       )}
-      
-      {/* Animate.css for animations */}
-      <link 
-        rel="stylesheet" 
-        href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
-        crossOrigin="anonymous"
-      />
     </div>
   );
 }

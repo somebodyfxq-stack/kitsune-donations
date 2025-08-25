@@ -1,10 +1,10 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-generator client {
-  provider = "prisma-client-js"
 }
 
 model DonationIntent {
@@ -13,34 +13,36 @@ model DonationIntent {
   nickname   String
   message    String
   amount     Int
-  youtubeUrl String?         // YouTube URL для віджету
   createdAt  DateTime        @default(now())
   streamerId String
-  streamer   User            @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  youtubeUrl String?
   events     DonationEvent[] @relation("IntentEvents")
-  
-  @@index([streamerId, createdAt])  // Для пошуку intents по стрімеру
+  streamer   User            @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+
+  @@index([streamerId, createdAt])
   @@index([streamerId])
 }
 
 model DonationEvent {
-  id          Int             @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
   identifier  String
   nickname    String
   message     String
   amount      Int
   monoComment String
-  jarTitle    String?         // Назва банки на момент донату
-  youtubeUrl  String?         // YouTube URL для віджету
-  createdAt   DateTime        @default(now())
-  intent      DonationIntent? @relation("IntentEvents", fields: [identifier], references: [identifier])
+  createdAt   DateTime       @default(now())
   streamerId  String
-  streamer    User            @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  jarTitle    String?
+  youtubeUrl  String?
+  cleared     Boolean        @default(false)
+  videoStatus String?        @default("pending") // pending, playing, completed, skipped
+  intent      DonationIntent @relation("IntentEvents", fields: [identifier], references: [identifier])
+  streamer    User           @relation(fields: [streamerId], references: [id], onDelete: Cascade)
 
   @@unique([identifier, createdAt])
   @@index([identifier])
-  @@index([streamerId, createdAt])  // Для оптимізації listDonationEvents
-  @@index([streamerId])             // Для загальних запитів по стрімеру
+  @@index([streamerId, createdAt])
+  @@index([streamerId])
 }
 
 model Setting {
@@ -56,11 +58,11 @@ model User {
   image            String?
   role             String            @default("streamer")
   accounts         Account[]
-  sessions         Session[]
-  monobankSettings MonobankSettings?
-  youtubeSettings  YouTubeSettings?
-  donationIntents  DonationIntent[]
   donationEvents   DonationEvent[]
+  donationIntents  DonationIntent[]
+  monobankSettings MonobankSettings?
+  sessions         Session[]
+  youtubeSettings  YouTubeSettings?
 }
 
 model Account {
@@ -97,21 +99,21 @@ model MonobankSettings {
   jarGoal         Int?
   webhookId       String? @unique
   webhookUrl      String?
-  webhookSecret   String? // Per-user секрет для верифікації webhook підпису
-  obsWidgetToken  String? @unique // Унікальний токен для OBS віджета
-  donationsPaused Boolean @default(false) // Чи призупинені донати для цього користувача
+  webhookSecret   String?
+  obsWidgetToken  String? @unique
+  donationsPaused Boolean @default(false)
   user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model YouTubeSettings {
-  userId               String  @id
-  maxDurationMinutes   Int     @default(5)       // Максимальний час відео (у хвилинах)
-  volume               Int     @default(50)      // Гучність 0-100
-  showClipTitle        Boolean @default(true)    // Відображати назву кліпу
-  showDonorName        Boolean @default(true)    // Відображати імя донатера
-  minLikes             Int     @default(0)       // Мінімум лайків
-  minViews             Int     @default(0)       // Мінімум переглядів
-  minComments          Int     @default(0)       // Мінімум коментарів
-  showImmediately      Boolean @default(false)   // Відображати новий донат одразу
-  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String  @id
+  maxDurationMinutes Int     @default(5)
+  volume             Int     @default(50)
+  showClipTitle      Boolean @default(true)
+  showDonorName      Boolean @default(true)
+  minLikes           Int     @default(0)
+  minViews           Int     @default(0)
+  minComments        Int     @default(0)
+  showImmediately    Boolean @default(false)
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

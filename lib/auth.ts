@@ -48,17 +48,26 @@ export const authOptions = {
       },
     }),
   ],
+  // Дозволити пов'язування аккаунтів з однаковим email для різних провайдерів
+  allowDangerousEmailAccountLinking: true,
   trustHost: true,
   session: { strategy: "jwt" as const },
   secret: process.env.NEXTAUTH_SECRET,
   pages: { signIn: "/login" },
   callbacks: {
-    async signIn({ user, account }: any) {
+    async signIn({ user, account, profile }: any) {
       console.log("🔐 SignIn callback:", {
         provider: account?.provider,
         userId: user?.id,
         userName: user?.name,
-        userEmail: user?.email
+        userEmail: user?.email,
+        accountId: account?.providerAccountId,
+        profileData: profile ? {
+          id: profile.id,
+          login: profile.login,
+          display_name: profile.display_name,
+          email: profile.email
+        } : null
       });
       
       // Assign roles based on the provider.  If a user signs in with Twitch

@@ -1,7 +1,7 @@
-import { redirect, notFound } from "next/navigation";
+import { notFound as _notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { YouTubeWidgetClient } from "../../youtube-widget-client";
-import type { Metadata } from "next";
+import { YouTubeWidgetRefactored } from "@/components/youtube/youtube-widget-refactored";
+import type { Metadata, Viewport } from "next";
 
 interface YouTubePageProps {
   params: {
@@ -14,7 +14,11 @@ interface YouTubePageProps {
 
 export const metadata: Metadata = {
   title: "YouTube Віджет - Kitsune Donations",
-  viewport: "width=device-width, initial-scale=1"
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 const ErrorPage = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -100,7 +104,7 @@ export default async function YouTubePage({ params, searchParams }: YouTubePageP
         volume: settings.volume,
         showClipTitle: settings.showClipTitle,
         showDonorName: settings.showDonorName,
-        showControls: settings.showControls ?? true, // Fallback to true if undefined
+        showControls: true, // Default value since not in database
         minLikes: settings.minLikes,
         minViews: settings.minViews,
         minComments: settings.minComments,
@@ -117,7 +121,7 @@ export default async function YouTubePage({ params, searchParams }: YouTubePageP
       className="w-full h-screen bg-transparent overflow-hidden m-0 p-0"
       suppressHydrationWarning={true}
     >
-      <YouTubeWidgetClient 
+      <YouTubeWidgetRefactored 
         streamerId={streamerId}
         token={token}
         settings={youtubeSettings}
