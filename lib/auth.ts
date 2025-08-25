@@ -130,7 +130,7 @@ export const authOptions = {
         token.sub = dbUser.id;
         token.role = dbUser.role;
         return token;
-      } catch (err) {
+      } catch {
         // If the database lookup fails for any reason we assume the token
         // should not grant access.  Remove identifying fields so that
         // middleware will redirect to the login page.

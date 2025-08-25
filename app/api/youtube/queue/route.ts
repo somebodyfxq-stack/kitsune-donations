@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { wsBroadcaster } from "@/lib/websocket/broadcaster";
+import { YouTubeQueueManager } from "@/lib/youtube/queue-manager";
 
 export const runtime = "nodejs";
 
 // Valid video statuses
-type VideoStatus = 'pending' | 'playing' | 'completed' | 'skipped';
+type VideoStatus = 'waiting_for_tts' | 'pending' | 'playing' | 'completed' | 'skipped';
 
 // Get current queue
 export async function GET(req: NextRequest) {
@@ -41,7 +43,7 @@ export async function GET(req: NextRequest) {
       orderBy: {
         createdAt: 'desc'
       },
-      take: 50
+      take: 200 // Increased limit to show all videos with controls
     });
 
     // Convert to queue format with status from database
@@ -98,7 +100,7 @@ export async function POST(req: NextRequest) {
     const { action, identifier, status } = body;
 
     // Validate status
-    const validStatuses: VideoStatus[] = ['pending', 'playing', 'completed', 'skipped'];
+    const validStatuses: VideoStatus[] = ['waiting_for_tts', 'pending', 'playing', 'completed', 'skipped'];
     const newStatus = action === 'stop' ? 'completed' : status;
     
     if (!validStatuses.includes(newStatus)) {
@@ -124,6 +126,22 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`🔄 Updated video ${identifier} status to: ${newStatus}`);
+    
+    // Broadcast video status change event via WebSocket
+    wsBroadcaster.notifyVideoStatusChange(streamerId, identifier, newStatus);
+    
+    // If video completed, also trigger queue update
+    if (newStatus === 'completed' || newStatus === 'skipped') {
+      const queueManager = YouTubeQueueManager.getInstance();
+      const queueData = await queueManager.getQueueData(streamerId);
+      
+      wsBroadcaster.notifyQueueUpdate(streamerId, {
+        currentlyPlaying: queueData.currentlyPlaying,
+        queueStats: queueData.statistics,
+        pendingCount: queueData.statistics.pendingVideos,
+      });
+    }
+    
     return NextResponse.json({ 
       success: true, 
       message: `Video status updated to: ${newStatus}`,
@@ -177,6 +195,16 @@ export async function DELETE(req: NextRequest) {
     });
 
     console.log(`🧹 Marked ${updateResult.count} completed/skipped videos as cleared`);
+    
+    // Broadcast queue update after clearing via WebSocket
+    const queueManager = YouTubeQueueManager.getInstance();
+    const queueData = await queueManager.getQueueData(streamerId);
+    
+    wsBroadcaster.notifyQueueUpdate(streamerId, {
+      currentlyPlaying: queueData.currentlyPlaying,
+      queueStats: queueData.statistics,
+      pendingCount: queueData.statistics.pendingVideos,
+    });
     
     return NextResponse.json({ 
       success: true, 
@@ -268,6 +296,18 @@ export async function PATCH(req: NextRequest) {
     };
 
     console.log(`▶️ Started playing video ${nextVideo.identifier} from ${nextVideo.nickname}`);
+    
+    // Broadcast video started and queue update via WebSocket
+    wsBroadcaster.notifyVideoStarted(streamerId, videoData);
+    
+    const queueManager = YouTubeQueueManager.getInstance();
+    const queueData = await queueManager.getQueueData(streamerId);
+    
+    wsBroadcaster.notifyQueueUpdate(streamerId, {
+      currentlyPlaying: videoData,
+      queueStats: queueData.statistics,
+      pendingCount: queueData.statistics.pendingVideos,
+    });
     
     return NextResponse.json({ 
       success: true,

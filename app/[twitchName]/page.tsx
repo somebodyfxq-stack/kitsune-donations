@@ -5,7 +5,7 @@ import { getAuthSession } from "@/lib/auth";
 import { DonationForm } from "@/components/donation-form";
 
 interface StreamerPageProps {
-  params: { twitchName: string };
+  params: Promise<{ twitchName: string }>;
 }
 
 export default async function StreamerPage({ params }: StreamerPageProps) {

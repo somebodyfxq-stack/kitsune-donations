@@ -2,7 +2,6 @@ import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 export const runtime = "nodejs";
 
 declare global {
-  // eslint-disable-next-line no-var
   var ttsClient: TextToSpeechClient | undefined;
 }
 
@@ -100,7 +99,7 @@ export async function GET(req: Request) {
     
     const contentType = getContentType(audioConfig.audioEncoding);
     
-    return new Response(audio, {
+    return new Response(Buffer.from(audio), {
       headers: { 
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=3600", // Кешуємо на 1 годину

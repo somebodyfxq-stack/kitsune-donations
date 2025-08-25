@@ -270,7 +270,8 @@ export function MonobankClient({ initial, onDataChange }: MonobankClientProps) {
                         backgroundSize: '100%'
                       }}
                     >
-                      <img
+                                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
                         src="/icons/jar.png"
                         alt="Jar icon"
                         className="w-8 h-8 object-contain"

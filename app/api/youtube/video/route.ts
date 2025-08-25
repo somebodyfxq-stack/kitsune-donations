@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       jarTitle: null,
       createdAt: new Date(),
       cleared: false, // Default value for new donations
-      videoStatus: null, // Default video status
+      videoStatus: 'waiting_for_tts', // YouTube videos start in waiting_for_tts status
     });
 
     console.log("YouTube video donation created:", {

@@ -39,9 +39,10 @@ export interface MonobankWebhookPayload {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { webhookId: string } },
+  { params }: { params: Promise<{ webhookId: string }> },
 ) {
-  const settings = await getMonobankSettingsByWebhook(params.webhookId);
+  const { webhookId } = await params;
+  const settings = await getMonobankSettingsByWebhook(webhookId);
   if (!settings)
     return NextResponse.json({
       ok: true,
@@ -53,7 +54,7 @@ export async function POST(
   
   // Log webhook details for debugging
   console.log(`Webhook received for user ${settings.userId}:`, {
-    webhookId: params.webhookId,
+    webhookId: webhookId,
     xSign: req.headers.get("x-sign"),
     bodyLength: raw.length
   });
@@ -68,7 +69,7 @@ export async function POST(
         if (isValid) {
           console.log("✅ Webhook signature verified successfully");
         } else {
-          console.warn(`⚠️ Invalid signature for webhook ${params.webhookId} - continuing anyway`);
+          console.warn(`⚠️ Invalid signature for webhook ${webhookId} - continuing anyway`);
           // Тимчасово НЕ відхиляємо запит при невалідному підписі
           // TODO: Увімкнути після налагодження формату ключа
         }
@@ -166,7 +167,7 @@ export async function POST(
     streamerId,
     createdAt: new Date(), // Використовуємо Date об'єкт
     cleared: false, // Default value for new donations
-    videoStatus: null, // Default video status
+    videoStatus: intent.youtubeUrl ? 'waiting_for_tts' : null, // YouTube videos start in waiting_for_tts status
   };
 
   try {

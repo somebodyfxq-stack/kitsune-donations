@@ -105,8 +105,10 @@ export async function POST(_request: NextRequest) {
       youtubeUrl: randomYouTubeUrl, // Випадкове YouTube відео або null
       jarTitle: settings.jarTitle || "Банка Monobank", // Зберігаємо назву банки на момент донату
       streamerId: userId,
-      createdAt: new Date()
-    } as any);
+      createdAt: new Date(),
+      cleared: false,
+      videoStatus: randomYouTubeUrl ? 'waiting_for_tts' : null // YouTube videos start in waiting_for_tts status
+    });
 
     // Створюємо об'єкт для відповіді
     const donationEvent = {

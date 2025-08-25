@@ -239,7 +239,7 @@ export const useYouTubePlayer = (
         height: '100%'
       },
       allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
-      allowFullscreen: !isOBSBrowser,
+      allowFullScreen: !isOBSBrowser,
       ...(isOBSBrowser && {
         loading: 'eager' as const,
         importance: 'high' as const,

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert";
-import { createTestDatabase, cleanupTestDatabase } from "./test-utils.ts";
+import { createTestDatabase, cleanupTestDatabase as _cleanupTestDatabase } from "./test-utils.ts";
 
 async function buildStore() {
   const { dir, prisma } = await createTestDatabase();

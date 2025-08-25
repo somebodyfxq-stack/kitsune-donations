@@ -10,12 +10,14 @@ export const revalidate = 0;
 
 
 interface ObsWidgetPageProps {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }
 
 export default async function ObsWidgetPage({ params }: ObsWidgetPageProps) {
+  const { token } = await params;
+  
   // Знаходимо користувача по obsWidgetToken
-  const streamerId = await findUserByObsWidgetToken(params.token);
+  const streamerId = await findUserByObsWidgetToken(token);
   
   if (!streamerId) {
     notFound();
@@ -23,7 +25,7 @@ export default async function ObsWidgetPage({ params }: ObsWidgetPageProps) {
 
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-white">Завантаження віджета...</div>}>
-      <ObsWidgetClient streamerId={streamerId} token={params.token} />
+      <ObsWidgetClient streamerId={streamerId} token={token} />
     </Suspense>
   );
 }

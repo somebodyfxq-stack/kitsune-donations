@@ -100,8 +100,11 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
   const PAUSE_CHECK_INTERVAL = 3000;
   const DISPLAY_DURATION = widgetConfig.timeLength ? widgetConfig.timeLength * 1000 : 8000;
   
+  // Використовуємо loudness для налаштування гучності
+  console.log(`🔊 Widget loudness configured to: ${widgetConfig.loudness}`);
+  
   // Громкість як у donatello.to
-  const loudness = {
+  const _loudness = {
     1: 0.003,
     2: 0.009,
     3: 0.06,
@@ -129,6 +132,7 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
     } catch (err) {
       console.error("Failed to read URL parameters:", err);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Pause state checker
@@ -153,9 +157,11 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
   const clearAll = useCallback(() => {
     console.log("🧹 Clearing all donation elements");
     
-    // Stop audio як у donatello.to
+    // Stop audio with proper logging
     if (audioRef.current) {
-      audioRef.current.pause();
+      const audio = audioRef.current;
+      console.log(`🎵 Stopping audio - ended: ${audio.ended}, currentTime: ${audio.currentTime.toFixed(2)}s, duration: ${audio.duration?.toFixed(2)}s`);
+      audio.pause();
       audioRef.current = null;
     }
     
@@ -226,13 +232,11 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
     
     console.log("🎯 Processing donation:", next);
     isProcessingRef.current = true;
+    
+    // Prepare data but DON'T show card yet
     setData(next);
-    setVisible(true);
     
-    // Set animations
-    setAnimation();
-    
-    // Create TTS
+    // Create TTS first
     const text = `${next.nickname} задонатив ${Math.round(next.amount)} гривень... ${next.message}`;
     const ttsUrl = `/api/tts?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(text)}&quality=fast`;
     
@@ -249,22 +253,26 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
     console.log("🎬 SAVED YouTube URL for later:", savedYouTubeUrl);
     
     if (debugMode) {
-      console.log("🎵 Starting TTS:", { text, voice: voiceName, url: ttsUrl });
+      console.log("🎵 Preparing TTS:", { text, voice: voiceName, url: ttsUrl });
     }
 
-    // Play TTS and hide after duration (покращений на основі donatello.to)
+    // Create audio element and setup events BEFORE showing card
     audioRef.current = new Audio(ttsUrl);
-    audioRef.current.volume = 0.9; // Max volume for testing
+    audioRef.current.volume = 0.9;
     
     // Simple cleanup when TTS finishes
     const handleTTSFinished = () => {
-      console.log("🎵 TTS completed, hiding donation");
+      console.log("🎵 TTS completed, keeping donation visible for a moment");
       
-      // Hide donation and process next
+      // Keep donation visible longer before hiding and processing next
       setTimeout(() => {
+        console.log("🎵 Now hiding donation after TTS completion");
         clearAll();
-        setTimeout(processNextDonation, 2000);
-      }, 1000);
+        setTimeout(() => {
+          console.log("🔄 Processing next donation");
+          processNextDonation();
+        }, 3000); // Increased delay between donations
+      }, 2000); // Keep donation visible for 2 seconds after TTS ends
     };
     
     // Remove fixed timeout - rely on TTS completion instead
@@ -275,39 +283,68 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
     //   }
     // });
     
-    // Try to play audio як у donatello.to
+    // Setup comprehensive audio event listeners
     if (audioRef.current) {
-      const promise = audioRef.current.play();
+      const audio = audioRef.current;
+      
+      // Show card and animation when audio is ready to play
+      audio.addEventListener('canplay', () => {
+        console.log("🎵 TTS ready to play - showing card now");
+        setVisible(true);
+        setAnimation();
+      }, { once: true });
+      
+      // Alternative trigger if canplay doesn't fire
+      audio.addEventListener('loadeddata', () => {
+        console.log("🎵 TTS data loaded");
+        if (!visible) {
+          console.log("🎵 Fallback: showing card on loadeddata");
+          setVisible(true);
+          setAnimation();
+        }
+      }, { once: true });
+      
+      // When TTS actually starts playing
+      audio.addEventListener('play', () => {
+        console.log("🎵 TTS STARTED playing");
+      });
+      
+      // Monitor progress
+      audio.addEventListener('timeupdate', () => {
+        if (debugMode && audio.duration) {
+          const progress = (audio.currentTime / audio.duration * 100).toFixed(1);
+          console.log(`🎵 TTS progress: ${progress}%`);
+        }
+      });
+      
+      // Try to play audio
+      const promise = audio.play();
       if (promise) {
-        promise.then(() => {
-          console.log("🎵 TTS STARTED playing");
-        }).catch(error => {
+        promise.catch(error => {
           console.warn("⚠️ Audio autoplay blocked:", error);
           
-          // Fallback - try to send YouTube signal after delay
+          // Show card immediately if autoplay is blocked
+          console.log("🎵 Autoplay blocked - showing card immediately");
+          setVisible(true);
+          setAnimation();
+          
+          // Fallback - call TTS finished after delay
           setTimeout(() => {
-            console.log("🎬 FALLBACK - sending YouTube signal due to autoplay block");
+            console.log("🎬 FALLBACK - TTS autoplay blocked, treating as finished");
             
             if (savedYouTubeUrl) {
-              const youtubeSignal = {
-                action: 'START_VIDEO',
-                timestamp: Date.now(),
-                videoData: {
+              fetch('/api/youtube/tts-complete', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
                   identifier: savedDonationData.identifier,
-                  nickname: savedDonationData.nickname,
-                  message: savedDonationData.message,
-                  amount: savedDonationData.amount,
-                  youtube_url: savedYouTubeUrl,
-                  createdAt: savedDonationData.createdAt
-                }
-              };
-              
-              localStorage.setItem('kitsune-youtube-signal', JSON.stringify(youtubeSignal));
-              window.dispatchEvent(new StorageEvent('storage', {
-                key: 'kitsune-youtube-signal',
-                newValue: JSON.stringify(youtubeSignal),
-                storageArea: localStorage
-              }));
+                  streamerId: streamerId
+                })
+              }).catch(apiError => {
+                console.error("❌ Error calling TTS completion API on autoplay block:", apiError);
+              });
             }
             
             handleTTSFinished();
@@ -316,35 +353,33 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
       }
       
       // Handle TTS completion and YouTube signal
-      audioRef.current.addEventListener('ended', () => {
+      audio.addEventListener('ended', () => {
         console.log("🎵 TTS FINISHED!");
         
         // Use SAVED YouTube URL (not data which might be null)
         if (savedYouTubeUrl) {
-          console.log("🎬 SENDING YouTube signal:", savedYouTubeUrl);
+          console.log("🎬 TTS finished, notifying API to start YouTube video:", savedYouTubeUrl);
           
-          const youtubeSignal = {
-            action: 'START_VIDEO',
-            timestamp: Date.now(),
-            videoData: {
+          // Call API to change video status from 'waiting_for_tts' to 'pending'
+          // This will now automatically broadcast TTS completion and queue update events
+          fetch('/api/youtube/tts-complete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
               identifier: savedDonationData.identifier,
-              nickname: savedDonationData.nickname,
-              message: savedDonationData.message,
-              amount: savedDonationData.amount,
-              youtube_url: savedYouTubeUrl,
-              createdAt: savedDonationData.createdAt
+              streamerId: streamerId
+            })
+          }).then(response => {
+            if (response.ok) {
+              console.log("🎬 TTS completion broadcasted via SSE - YouTube video will start automatically");
+            } else {
+              console.error("❌ Failed to notify API about TTS completion");
             }
-          };
-          
-          // Set in localStorage and dispatch event
-          localStorage.setItem('kitsune-youtube-signal', JSON.stringify(youtubeSignal));
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: 'kitsune-youtube-signal',
-            newValue: JSON.stringify(youtubeSignal),
-            storageArea: localStorage
-          }));
-          
-          console.log("🎬 YouTube signal SENT successfully!");
+          }).catch(error => {
+            console.error("❌ Error calling TTS completion API:", error);
+          });
         } else {
           console.log("❌ NO saved YouTube URL found!");
         }
@@ -353,53 +388,60 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
         handleTTSFinished();
       });
       
-      audioRef.current.addEventListener('error', () => {
-        console.warn("⚠️ TTS ERROR - using fallback");
+      audio.addEventListener('error', (errorEvent) => {
+        console.warn("⚠️ TTS ERROR detected:", errorEvent);
+        
+        // Don't immediately finish on error - try to continue
+        console.log("🎵 TTS error detected, but continuing to show card and wait...");
+        
+        // Show card if not shown yet
+        if (!visible) {
+          setVisible(true);
+          setAnimation();
+        }
         
         // Use SAVED YouTube URL (not data which might be null)
         if (savedYouTubeUrl) {
-          console.log("🎬 SENDING YouTube signal (ERROR fallback)");
+          console.log("🎬 TTS had error but will still proceed to YouTube video");
           
-          const youtubeSignal = {
-            action: 'START_VIDEO',
-            timestamp: Date.now(),
-            videoData: {
-              identifier: savedDonationData.identifier,
-              nickname: savedDonationData.nickname,
-              message: savedDonationData.message,
-              amount: savedDonationData.amount,
-              youtube_url: savedYouTubeUrl,
-              createdAt: savedDonationData.createdAt
-            }
-          };
-          
-          localStorage.setItem('kitsune-youtube-signal', JSON.stringify(youtubeSignal));
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: 'kitsune-youtube-signal',
-            newValue: JSON.stringify(youtubeSignal),
-            storageArea: localStorage
-          }));
+          // Call API to proceed to video after longer delay  
+          // This will broadcast TTS error and still allow video to proceed
+          setTimeout(() => {
+            fetch('/api/youtube/tts-complete', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                identifier: savedDonationData.identifier,
+                streamerId: streamerId
+              })
+            }).catch(apiError => {
+              console.error("❌ Error calling TTS completion API on error:", apiError);
+            });
+          }, 3000); // Wait 3 seconds before proceeding
         }
         
-        // Longer delay for error case
+        // Much longer delay for error case to allow manual reading of donation
         setTimeout(() => {
           handleTTSFinished();
-        }, 2000);
+        }, 8000); // 8 seconds instead of 2
       });
     }
     
-    // Safety timeout - simple fallback
+    // Safety timeout - increased for longer TTS messages
     const safetyTimeout = setTimeout(() => {
       console.log("⏰ SAFETY TIMEOUT - forcing cleanup");
       handleTTSFinished();
-    }, 20000); // 20 second safety timeout
+    }, 30000); // 30 second safety timeout (increased from 20s)
     
     cleanupFunctionsRef.current.push(() => clearTimeout(safetyTimeout));
     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [donationsPaused, voiceName, debugMode]);
 
   // Finish current donation and process next
-  const finishDonation = useCallback(() => {
+  const _finishDonation = useCallback(() => {
     console.log("🏁 Finishing donation");
     
     setVisible(false);
@@ -564,6 +606,7 @@ export function ObsWidgetClient({ streamerId, token }: ObsWidgetClientProps = {}
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectSSE]);
 
   return (

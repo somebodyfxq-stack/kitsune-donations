@@ -12,7 +12,7 @@ export interface QueueItem {
   amount: number;
   youtube_url: string;
   createdAt: string;
-  status: 'pending' | 'playing' | 'completed' | 'skipped';
+  status: 'waiting_for_tts' | 'pending' | 'playing' | 'completed' | 'skipped';
   addedAt: string;
 }
 
@@ -67,7 +67,7 @@ export class YouTubeQueueManager {
         orderBy: {
           createdAt: 'desc'
         },
-        take: 100 // Increased limit for better queue management
+        take: 200 // Increased limit to match API and show all videos with controls
       });
 
       // Convert to queue format
@@ -79,7 +79,7 @@ export class YouTubeQueueManager {
         amount: donation.amount,
         youtube_url: donation.youtubeUrl || "",
         createdAt: donation.createdAt.toISOString(),
-        status: (donation.videoStatus || 'pending') as 'pending' | 'playing' | 'completed' | 'skipped',
+        status: (donation.videoStatus || 'pending') as 'waiting_for_tts' | 'pending' | 'playing' | 'completed' | 'skipped',
         addedAt: donation.createdAt.toISOString()
       }));
 
@@ -105,7 +105,7 @@ export class YouTubeQueueManager {
   async updateVideoStatus(
     streamerId: string, 
     identifier: string, 
-    status: 'pending' | 'playing' | 'completed' | 'skipped'
+    status: 'waiting_for_tts' | 'pending' | 'playing' | 'completed' | 'skipped'
   ): Promise<boolean> {
     try {
       console.log(`🔄 Updating video ${identifier} status to: ${status}`);

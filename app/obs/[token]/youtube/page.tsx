@@ -4,12 +4,12 @@ import { YouTubeWidgetRefactored } from "@/components/youtube/youtube-widget-ref
 import type { Metadata, Viewport } from "next";
 
 interface YouTubePageProps {
-  params: {
+  params: Promise<{
     token: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     debug?: string;
-  };
+  }>;
 }
 
 export const metadata: Metadata = {
@@ -29,8 +29,9 @@ const ErrorPage = ({ title, children }: { title: string; children: React.ReactNo
 );
 
 export default async function YouTubePage({ params, searchParams }: YouTubePageProps) {
-  const { token } = params;
-  const debug = searchParams.debug === "true";
+  const { token } = await params;
+  const resolvedSearchParams = await searchParams;
+  const debug = resolvedSearchParams.debug === "true";
 
   // Знаходимо користувача за OBS токеном
   let streamerId: string | undefined;

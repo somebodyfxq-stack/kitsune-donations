@@ -190,6 +190,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
             onClick={() => setDialogOpen(true)}
             className="btn-secondary text-sm flex items-center gap-2"
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icons/youtube.svg"
               alt="YouTube"
@@ -211,6 +212,7 @@ export function DonationForm({ initialName = "" }: DonationFormProps) {
         {/* Область попереднього перегляду відео поза діалогом */}
         {youtube && videoId && (
           <div className="w-full aspect-video bg-neutral-800 rounded-lg flex items-center justify-center border border-neutral-700 relative overflow-hidden group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
               alt="YouTube відео"

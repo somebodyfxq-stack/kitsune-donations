@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createEventSource } from "@/lib/fetch";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { AnyServerMessage } from "@/lib/websocket/types";
 
 // =============================================
 // TYPES & INTERFACES
@@ -70,19 +71,26 @@ export function YouTubeWidgetClient({
   // STATE
   // =============================================
   
-  // Connection state
-  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
-  const eventSourceRef = useRef<EventSource | null>(null);
+  // WebSocket connection for real-time updates
+  const { 
+    state: wsState, 
+    send: wsSend, 
+    subscribe, 
+    lastMessage,
+    connectionInfo 
+  } = useWebSocket(streamerId, {
+    subscriptions: ['youtube-queue', 'video-status', 'tts'],
+  });
   
   // Current video state (queue is now managed by API)
   const [currentVideo, setCurrentVideo] = useState<YouTubeEvent | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [_isPlaying, setIsPlaying] = useState(false);
   
   // Player state
   const [playerState, setPlayerState] = useState<PlayerState>("idle");
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [videoTitle, setVideoTitle] = useState("");
-  const [hasPlayerError, setHasPlayerError] = useState(false);
+  const [_hasPlayerError, setHasPlayerError] = useState(false);
   
   // No more localStorage - everything is synced with database via API
 
@@ -93,7 +101,6 @@ export function YouTubeWidgetClient({
   
   // Timeouts and intervals
   const finishTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
   
   // =============================================
@@ -346,6 +353,7 @@ export function YouTubeWidgetClient({
     };
 
     playerContainerRef.current.appendChild(iframe);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, isOBSBrowser, simulateUserInteraction, log, logError]);
 
 
@@ -354,7 +362,7 @@ export function YouTubeWidgetClient({
   // ERROR HANDLING
   // =============================================
   
-  const handleVideoError = useCallback((videoId: string, error?: any) => {
+  const _handleVideoError = useCallback((videoId: string, error?: any) => {
     log(`🔄 Handling video error for: ${videoId}`, error);
     
     setHasPlayerError(true);
@@ -422,6 +430,7 @@ export function YouTubeWidgetClient({
       // Start next video in queue
       setTimeout(() => processQueue(), 600);
     }, 5000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [log]);
 
   // =============================================
@@ -442,6 +451,7 @@ export function YouTubeWidgetClient({
       // Start next video in queue
       setTimeout(() => processQueue(), 600);
     }, duration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.maxDurationMinutes, log]);
   
   const finishVideo = useCallback(async () => {
@@ -531,8 +541,9 @@ export function YouTubeWidgetClient({
     isProcessingRef.current = true;
 
     try {
-      // Get next video from API
-      const response = await fetch('/api/youtube/queue', {
+      // Get next video from API with streamerId parameter
+      const url = streamerId ? `/api/youtube/queue?streamerId=${streamerId}` : '/api/youtube/queue';
+      const response = await fetch(url, {
         method: 'PATCH'
       });
 
@@ -595,180 +606,73 @@ export function YouTubeWidgetClient({
   // Video validation is now above processQueue
   
   // =============================================
-  // SERVER-SENT EVENTS
+  // WEBSOCKET EVENT HANDLING
   // =============================================
-  
-  const connectSSE = useCallback(() => {
-    if (!streamerId) {
-      logError("No streamer ID provided");
-      return;
-    }
-    
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
 
-    setConnectionState("connecting");
-    log(`Connecting to SSE for streamer: ${streamerId}`);
-    
-    try {
-      const eventSource = createEventSource(`/api/stream?streamerId=${streamerId}`);
-      eventSourceRef.current = eventSource;
+  // Handle WebSocket messages
+  useEffect(() => {
+    if (!lastMessage) return;
 
-      eventSource.onopen = () => {
-        log("SSE connection opened");
-        setConnectionState("connected");
+    log(`📡 YouTube widget received WebSocket message: ${lastMessage.type}`);
 
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-          reconnectTimeoutRef.current = null;
+    switch (lastMessage.type) {
+      case 'youtube-queue-updated':
+        if ('data' in lastMessage && lastMessage.data.currentlyPlaying && !currentVideo) {
+          log("🎬 New video available from queue update, processing...");
+          processQueue();
         }
-      };
-
-      eventSource.onerror = (error) => {
-        logError("SSE connection error:", error);
-        setConnectionState("error");
+        break;
         
-        eventSource.close();
-        
-        if (!reconnectTimeoutRef.current) {
-        reconnectTimeoutRef.current = setTimeout(() => {
-            log("Attempting to reconnect...");
-          connectSSE();
-          }, 5000);
+      case 'video-status-changed':
+        if ('data' in lastMessage && lastMessage.data.identifier === currentVideo?.identifier) {
+          if (lastMessage.data.status === 'completed' || lastMessage.data.status === 'skipped') {
+            log(`🔄 Current video ${lastMessage.data.identifier} was ${lastMessage.data.status}, finishing...`);
+            finishVideo();
+          }
         }
-      };
-      
-      // НЕ слухаємо SSE події автоматично - чекаємо сигнал від donation widget'у
-      log("🎬 YouTube widget ready, waiting for signals from donation widget");
-
-    } catch (error) {
-      logError("Failed to create SSE connection:", error);
-      setConnectionState("error");
+        break;
+        
+      case 'video-started':
+        if ('data' in lastMessage && !currentVideo) {
+          log("🎬 Video started event received, processing queue...");
+          processQueue();
+        }
+        break;
+        
+      case 'tts-completed':
+        if ('data' in lastMessage) {
+          log(`🎵 TTS completed for ${lastMessage.data.identifier}, video should start soon`);
+        }
+        break;
+        
+      case 'error':
+        if ('data' in lastMessage) {
+          logError("WebSocket error:", lastMessage.data.message);
+        }
+        break;
+        
+      default:
+        // Ignore unknown message types
+        break;
     }
-  }, [streamerId, log, logError]);
+  }, [lastMessage, currentVideo, processQueue, finishVideo, log, logError]);
   
   // =============================================
   // EFFECTS
   // =============================================
   
-  // Connect to SSE when component mounts
+  // Subscribe to relevant channels when connected
   useEffect(() => {
-    if (streamerId) {
-      connectSSE();
+    if (wsState === 'connected' && streamerId) {
+      subscribe(['youtube-queue', 'video-status', 'tts']);
+      log("🎬 YouTube widget connected to WebSocket and subscribed to channels");
     }
-    
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-    };
-  }, [streamerId, connectSSE]);
+  }, [wsState, streamerId, subscribe, log]);
   
-  // Listen for signals from donation widget
+  // Initialize widget - using real-time WebSocket events
   useEffect(() => {
-    log("🎬 YouTube widget initialized, setting up signal listeners");
-    
-
-
-    // Simple function to check for existing signal on mount
-    const checkExistingSignal = () => {
-      try {
-        const existingSignal = localStorage.getItem('kitsune-youtube-signal');
-        if (existingSignal) {
-          const signal = JSON.parse(existingSignal);
-          if (signal.action === 'START_VIDEO' && signal.videoData) {
-            log("🎬 FOUND existing signal on startup");
-            handleStorageChange({ key: 'kitsune-youtube-signal', newValue: existingSignal } as StorageEvent);
-          }
-        }
-      } catch (error) {
-        logError("Error checking existing signal:", error);
-      }
-    };
-
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'kitsune-youtube-signal' && event.newValue) {
-        try {
-          const signal = JSON.parse(event.newValue);
-          
-          if (signal.action === 'START_VIDEO' && signal.videoData) {
-            log("🎬 RECEIVED YouTube signal:", signal.videoData.youtube_url);
-            
-            // Add video to queue immediately
-            const youtubeEvent: YouTubeEvent = {
-              identifier: signal.videoData.identifier,
-              nickname: signal.videoData.nickname,
-              message: signal.videoData.message,
-              amount: signal.videoData.amount,
-              createdAt: signal.videoData.createdAt,
-              youtube_url: signal.videoData.youtube_url,
-              videoUrl: signal.videoData.youtube_url
-            };
-            
-            // Video will be picked up by the API polling system
-            log("🎬 Video signal received - will be processed by API polling");
-            
-            // Clear signal
-            localStorage.removeItem('kitsune-youtube-signal');
-          }
-        } catch (error) {
-          logError("YouTube signal parse error:", error);
-        }
-      }
-    };
-    
-    // Check for existing signal on mount
-    checkExistingSignal();
-    
-    // Just listen for SSE signals - no more localStorage control
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [streamerId, log, logError]);
-  
-  // Poll API for queue changes and sync status
-  useEffect(() => {
-    const checkQueueAndSync = async () => {
-      try {
-        const response = await fetch('/api/youtube/queue');
-        if (response.ok) {
-          const data = await response.json();
-          
-          // Check if our current video status needs to be updated
-          if (currentVideo) {
-            const currentVideoInAPI = data.queue.find((v: any) => v.identifier === currentVideo.identifier);
-            if (currentVideoInAPI && currentVideoInAPI.status === 'completed') {
-              log("🔄 Current video marked as completed in API, finishing...");
-              await finishVideo();
-              return;
-            }
-          }
-          
-          // If no video is playing and there are pending videos, start the next one
-          if (!currentVideo && data.queue.some((v: any) => v.status === 'pending')) {
-            log("🔄 Found pending videos, processing queue...");
-            await processQueue();
-          }
-        }
-      } catch (error) {
-        logError("Error checking queue sync:", error);
-      }
-    };
-
-    // Check immediately
-    checkQueueAndSync();
-    
-    // Then check every 3 seconds for real-time sync
-    const interval = setInterval(checkQueueAndSync, 3000);
-    
-    return () => clearInterval(interval);
-  }, [currentVideo, processQueue, finishVideo, log, logError]);
+    log("🎬 YouTube widget initialized - using WebSocket real-time events!");
+  }, [log]);
   
   // Cleanup on unmount
   useEffect(() => {

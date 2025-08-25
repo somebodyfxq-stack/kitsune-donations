@@ -108,6 +108,7 @@ export async function listDonationEvents(
 interface SettingMap {
   // Define your application settings here, e.g.:
   // exampleKey: string;
+  [key: string]: unknown;
 }
 
 type SettingKey = keyof SettingMap;
@@ -120,7 +121,7 @@ type SettingKey = keyof SettingMap;
 export async function getSetting<K extends SettingKey>(
   key: K,
 ): Promise<SettingMap[K] | null> {
-  const s: Setting | null = await prisma.setting.findUnique({ where: { key } });
+  const s: Setting | null = await prisma.setting.findUnique({ where: { key: key as string } });
   return (s?.value as SettingMap[K]) ?? null;
 }
 
@@ -134,9 +135,9 @@ export async function setSetting<K extends SettingKey>(
   value: SettingMap[K],
 ): Promise<void> {
   await prisma.setting.upsert({
-    where: { key },
+    where: { key: key as string },
     update: { value: String(value) },
-    create: { key, value: String(value) },
+    create: { key: key as string, value: String(value) },
   });
 }
 
@@ -190,8 +191,7 @@ export async function getMonobankSettingsByWebhook(
  * user can have at most one Monobank settings row.
  * Токен автоматично шифрується перед збереженням.
  */
-export interface MonobankSettingsUpdate
-  extends Partial<Omit<MonobankSettings, "userId">> {}
+export type MonobankSettingsUpdate = Partial<Omit<MonobankSettings, "userId">>
 
 export async function upsertMonobankSettings(
   userId: string,

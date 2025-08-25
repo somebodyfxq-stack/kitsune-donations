@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useOBSDetection } from "@/hooks/use-obs-detection";
 import { useYouTubePlayer, type YouTubeSettings } from "@/hooks/use-youtube-player";
-import { useVideoQueue } from "@/hooks/use-video-queue";
+import { useRealTimeYouTubeQueue } from "@/hooks/use-realtime-youtube-queue";
 import { useSSEConnection } from "@/hooks/use-sse-connection";
 
 // =============================================
@@ -51,7 +51,7 @@ export const YouTubeWidgetRefactored = ({
   const { 
     isOBSBrowser, 
     obsCapabilities,
-    simulateUserInteraction 
+    simulateUserInteraction: _simulateUserInteraction 
   } = useOBSDetection();
   
   const { 
@@ -64,9 +64,10 @@ export const YouTubeWidgetRefactored = ({
     isProcessing,
     hasError,
     errorMessage,
+    isConnected: queueConnected,
     processNextVideo,
     finishCurrentVideo,
-  } = useVideoQueue(streamerId);
+  } = useRealTimeYouTubeQueue(streamerId);
 
   // =============================================
   // VIDEO LIFECYCLE HANDLERS
@@ -98,11 +99,11 @@ export const YouTubeWidgetRefactored = ({
   const {
     playerState,
     isPlayerReady,
-    currentError,
+    currentError: _currentError,
     currentVideoId,
     showBlockedMessage,
     playVideo,
-    stopVideo,
+    stopVideo: _stopVideo,
     cleanup,
     getIframeProps,
   } = useYouTubePlayer(settings, isOBSBrowser, handleVideoEnd, handleVideoError);

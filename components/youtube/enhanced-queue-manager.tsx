@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { AnyServerMessage } from "@/lib/websocket/types";
 
 // =============================================
 // TYPES & INTERFACES
@@ -16,7 +18,7 @@ interface QueueItem {
   amount: number;
   youtube_url: string;
   createdAt: string;
-  status: 'pending' | 'playing' | 'completed' | 'skipped';
+  status: 'waiting_for_tts' | 'pending' | 'playing' | 'completed' | 'skipped';
   addedAt: string;
 }
 
@@ -34,7 +36,7 @@ interface QueueData {
 }
 
 interface QueueFilters {
-  status: 'all' | 'pending' | 'playing' | 'completed' | 'skipped';
+  status: 'all' | 'waiting_for_tts' | 'pending' | 'playing' | 'completed' | 'skipped';
   search: string;
   sortBy: 'createdAt' | 'amount' | 'nickname';
   sortOrder: 'asc' | 'desc';
@@ -70,6 +72,17 @@ export default function EnhancedQueueManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  
+  // WebSocket connection for real-time updates
+  const { 
+    state: wsState, 
+    send: wsSend, 
+    subscribe, 
+    lastMessage,
+    connectionInfo 
+  } = useWebSocket(session?.user?.id, {
+    subscriptions: ['youtube-queue', 'video-status'],
+  });
 
   // =============================================
   // DATA FETCHING
@@ -195,7 +208,7 @@ export default function EnhancedQueueManager() {
   const filteredAndSortedQueue = useMemo(() => {
     let filtered = queueData.queue;
 
-    // Apply status filter
+    // Apply status filter first
     if (filters.status !== 'all') {
       filtered = filtered.filter(video => video.status === filters.status);
     }
@@ -210,24 +223,60 @@ export default function EnhancedQueueManager() {
       );
     }
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      
-      switch (filters.sortBy) {
-        case 'createdAt':
-          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-          break;
-        case 'amount':
-          comparison = a.amount - b.amount;
-          break;
-        case 'nickname':
-          comparison = a.nickname.localeCompare(b.nickname);
-          break;
-      }
-      
-      return filters.sortOrder === 'desc' ? -comparison : comparison;
-    });
+    // For "all" status, apply special queue-based sorting
+    if (filters.status === 'all') {
+      // Sort by queue priority: playing -> pending/waiting_for_tts -> completed/skipped
+      filtered.sort((a, b) => {
+        // Define priority order for queue display
+        const getPriority = (status: string) => {
+          switch (status) {
+            case 'playing': return 1;
+            case 'pending': return 2;
+            case 'waiting_for_tts': return 2;
+            case 'completed': return 3;
+            case 'skipped': return 3;
+            default: return 4;
+          }
+        };
+
+        const priorityA = getPriority(a.status);
+        const priorityB = getPriority(b.status);
+
+        // First sort by priority
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+
+        // Within same priority group, sort by creation time (oldest first for pending, newest first for completed)
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+
+        if (priorityA === 2) { // pending/waiting_for_tts - oldest first (FIFO)
+          return timeA - timeB;
+        } else { // completed/skipped - newest first
+          return timeB - timeA;
+        }
+      });
+    } else {
+      // For specific status filters, use user-selected sorting
+      filtered.sort((a, b) => {
+        let comparison = 0;
+        
+        switch (filters.sortBy) {
+          case 'createdAt':
+            comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            break;
+          case 'amount':
+            comparison = a.amount - b.amount;
+            break;
+          case 'nickname':
+            comparison = a.nickname.localeCompare(b.nickname);
+            break;
+        }
+        
+        return filters.sortOrder === 'desc' ? -comparison : comparison;
+      });
+    }
 
     return filtered;
   }, [queueData.queue, filters]);
@@ -268,21 +317,54 @@ export default function EnhancedQueueManager() {
       'completed': { emoji: '✓', text: 'Завершено', color: 'green' },
       'playing': { emoji: '▶️', text: 'Відтворюється', color: 'blue' },
       'skipped': { emoji: '⏭️', text: 'Пропущено', color: 'red' },
-      'pending': { emoji: '⏳', text: 'Очікує', color: 'yellow' }
+      'pending': { emoji: '⏳', text: 'Очікує', color: 'yellow' },
+      'waiting_for_tts': { emoji: '🎵', text: 'Читання донату', color: 'purple' }
     };
     
     return badges[status as keyof typeof badges] || badges.pending;
   }, []);
 
   // =============================================
-  // AUTO-REFRESH
+  // REAL-TIME WEBSOCKET CONNECTION
   // =============================================
 
+  // Handle WebSocket messages
   useEffect(() => {
-    fetchQueue();
-    const interval = setInterval(fetchQueue, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, [fetchQueue]);
+    if (!lastMessage) return;
+
+    console.log("📡 Enhanced Queue Manager received WebSocket message:", lastMessage.type);
+
+    switch (lastMessage.type) {
+      case 'youtube-queue-updated':
+      case 'video-status-changed':
+      case 'video-started':
+      case 'video-completed':
+        // Refresh queue to get latest data
+        fetchQueue();
+        break;
+        
+      case 'error':
+        if ('data' in lastMessage) {
+          setError(lastMessage.data.message || 'WebSocket error');
+        }
+        break;
+        
+      default:
+        // Ignore unknown message types
+        break;
+    }
+  }, [lastMessage, fetchQueue]);
+
+  // Subscribe to relevant channels when connected
+  useEffect(() => {
+    if (wsState === 'connected' && session?.user?.id) {
+      subscribe(['youtube-queue', 'video-status', 'tts']);
+      
+      // Load initial queue state
+      fetchQueue();
+      setError(null);
+    }
+  }, [wsState, session?.user?.id, subscribe, fetchQueue]);
 
   // =============================================
   // AUTHENTICATION & LOADING GUARDS
@@ -386,6 +468,72 @@ export default function EnhancedQueueManager() {
           </div>
         </div>
 
+        {/* WebSocket Connection Status */}
+        <div className={`card p-3 mb-4 ${wsState === 'connected' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+          <div className="flex items-center justify-between">
+            <div className={`flex items-center text-sm ${wsState === 'connected' ? 'text-green-300' : 'text-red-300'}`}>
+              <span className="mr-2">{wsState === 'connected' ? '🟢' : '🔴'}</span>
+              <span>
+                {wsState === 'connected' && `Підключено до WebSocket (${connectionInfo.latency}ms)`}
+                {wsState === 'connecting' && 'Підключення до WebSocket...'}
+                {wsState === 'disconnected' && 'Відключено від WebSocket'}
+                {wsState === 'error' && 'Помилка WebSocket з\'єднання'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              {connectionInfo.reconnectCount > 0 && (
+                <span className="text-xs text-yellow-400">
+                  Переп'єднання: {connectionInfo.reconnectCount}
+                </span>
+              )}
+              {wsState !== 'connected' && wsState !== 'connecting' && (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+                >
+                  🔄 Перезавантажити
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Queue Information */}
+        {filters.status === 'all' && (
+          <div className="card p-4 mb-6 bg-blue-500/10 border border-blue-500/20">
+            <div className="space-y-2">
+              <div className="flex items-center text-blue-300">
+                <span className="mr-2">ℹ️</span>
+                <span className="text-sm">
+                  <strong>Порядок черги:</strong> 1️⃣ Відтворюється зараз → 2️⃣ Очікують (за часом замовлення) → 3️⃣ Завершені (за часом відтворення)
+                </span>
+              </div>
+              <div className="flex items-center text-xs text-neutral-400 flex-wrap gap-4">
+                <div className="flex items-center">
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 ring-1 ring-blue-300 mr-1"></div>
+                  <span>Відтворюється</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-r from-purple-500 to-violet-500 mr-1"></div>
+                  <span>Читання донату</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 mr-1"></div>
+                  <span>Очікує</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 mr-1"></div>
+                  <span>Завершено</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-r from-red-500 to-orange-500 mr-1"></div>
+                  <span>Пропущено</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Filters & Controls */}
         <div className="card p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -403,6 +551,7 @@ export default function EnhancedQueueManager() {
                 className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-md text-neutral-100 focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               >
                 <option value="all">Всі відео</option>
+                <option value="waiting_for_tts">Читання донату</option>
                 <option value="pending">Очікують</option>
                 <option value="playing">Відтворюються</option>
                 <option value="completed">Завершені</option>
@@ -499,6 +648,7 @@ export default function EnhancedQueueManager() {
               {filteredAndSortedQueue.map((video, index) => {
                 const badge = getStatusBadge(video.status);
                 const isActionLoading = actionLoading === video.identifier;
+                const queueNumber = index + 1; // Queue number starts from 1
                 
                 return (
                   <div 
@@ -509,17 +659,19 @@ export default function EnhancedQueueManager() {
                   >
                     <div className="flex items-start space-x-6">
                       
-                      {/* Queue Position */}
-                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                      {/* Queue Number */}
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${
                         video.status === 'completed' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                        video.status === 'playing' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' :
+                        video.status === 'playing' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 ring-2 ring-blue-300' :
                         video.status === 'skipped' ? 'bg-gradient-to-r from-red-500 to-orange-500' :
+                        video.status === 'waiting_for_tts' ? 'bg-gradient-to-r from-purple-500 to-violet-500' :
                         'bg-gradient-to-r from-violet-500 to-fuchsia-500'
                       }`}>
-                        {badge.emoji}
+                        {queueNumber}
                       </div>
                       
                       {/* Video Thumbnail */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img 
                         src={getThumbnailUrl(video.youtube_url) || "/placeholder.jpg"}
                         alt="Video thumbnail"
@@ -534,6 +686,11 @@ export default function EnhancedQueueManager() {
                           <span className={`ml-3 badge text-${badge.color}-400 ring-${badge.color}-500/20 bg-${badge.color}-500/10`}>
                             {badge.emoji} {badge.text}
                           </span>
+                          {video.status === 'playing' && (
+                            <span className="ml-3 badge text-blue-400 ring-blue-500/20 bg-blue-500/10 animate-pulse">
+                              🔴 В ЕФІРІ
+                            </span>
+                          )}
                         </div>
                         
                         {video.message && (
@@ -558,19 +715,19 @@ export default function EnhancedQueueManager() {
                       
                       {/* Action Buttons */}
                       <div className="flex flex-col space-y-2 min-w-[120px]">
-                        {video.status === 'pending' && (
+                        {(video.status === 'pending' || video.status === 'waiting_for_tts') && (
                           <>
                             <button
                               onClick={() => stopVideo(video.identifier)}
                               disabled={isActionLoading}
-                              className="btn-primary text-sm disabled:opacity-50"
+                              className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 px-3 py-2 text-sm font-medium text-white shadow-md hover:from-green-400 hover:to-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {isActionLoading ? '⏳' : '⏹️'} Завершити
                             </button>
                             <button
                               onClick={() => skipVideo(video.identifier)}
                               disabled={isActionLoading}
-                              className="btn-secondary text-sm disabled:opacity-50"
+                              className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 px-3 py-2 text-sm font-medium text-white shadow-md hover:from-orange-400 hover:to-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {isActionLoading ? '⏳' : '⏭️'} Пропустити
                             </button>
@@ -581,7 +738,7 @@ export default function EnhancedQueueManager() {
                           <button
                             onClick={() => stopVideo(video.identifier)}
                             disabled={isActionLoading}
-                            className="btn-primary bg-red-600 hover:bg-red-700 text-sm disabled:opacity-50"
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-medium text-white shadow-md hover:from-red-500 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isActionLoading ? '⏳' : '⏹️'} Зупинити
                           </button>
@@ -591,7 +748,7 @@ export default function EnhancedQueueManager() {
                           <button
                             onClick={() => restartVideo(video.identifier)}
                             disabled={isActionLoading}
-                            className="btn-secondary text-sm disabled:opacity-50"
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 px-3 py-2 text-sm font-medium text-white shadow-md hover:from-blue-400 hover:to-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isActionLoading ? '⏳' : '🔄'} Перезапустити
                           </button>

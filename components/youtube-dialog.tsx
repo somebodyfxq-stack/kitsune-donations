@@ -117,6 +117,7 @@ export function YouTubeDialog({ isOpen, onClose, onAdd, currentUrl }: YouTubeDia
           <div className="w-full aspect-video bg-neutral-800 rounded-lg flex items-center justify-center border border-neutral-700 relative overflow-hidden">
             {url && videoId ? (
               <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
                   alt="YouTube відео"

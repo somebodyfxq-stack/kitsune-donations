@@ -35,7 +35,7 @@ model DonationEvent {
   jarTitle    String?
   youtubeUrl  String?
   cleared     Boolean        @default(false)
-  videoStatus String?        @default("pending") // pending, playing, completed, skipped
+  videoStatus String?        @default("pending") // waiting_for_tts, pending, playing, completed, skipped
   intent      DonationIntent @relation("IntentEvents", fields: [identifier], references: [identifier])
   streamer    User           @relation(fields: [streamerId], references: [id], onDelete: Cascade)
 
